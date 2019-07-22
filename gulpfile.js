@@ -35,8 +35,9 @@ task
         lint
         (
             {
-                src: ['src/**/*.js', '!src/ui/worker.js'],
-                parserOptions: { sourceType: 'module' },
+                src: ['src/**/*.{js,ts}', '!src/ui/worker.js'],
+                parserOptions: { project: 'tsconfig.json', sourceType: 'module' },
+                rules: { '@typescript-eslint/unbound-method': 'off' },
             },
             {
                 src: ['gulpfile.js', 'build/**/*.js', '!build/legacy/**'],
@@ -93,6 +94,24 @@ async function bundle(inputOptions, outputFile, banner)
 
 task
 (
+    'prepare:lib',
+    parallel
+    (
+        () => src('src/lib/*.{js,d.ts}').pipe(dest('.tmp-src/lib')),
+        () =>
+        {
+            const ts = require('gulp-typescript');
+
+            const tsResult =
+            src('src/lib/*.ts').pipe(ts({ module: 'es2015', strict: true, target: 'es5' }));
+            const stream = tsResult.js.pipe(dest('.tmp-src/lib'));
+            return stream;
+        },
+    ),
+);
+
+task
+(
     'bundle:lib',
     async () =>
     {
@@ -101,7 +120,7 @@ task
 
         const inputOptions =
         {
-            input: 'src/lib/jscrewit-main.js',
+            input: '.tmp-src/lib/jscrewit-main.js',
             plugins: [cleanup({ comments: [/^(?!\*\s*global\b)/], maxEmptyLines: -1 })],
         };
         await bundle(inputOptions, 'lib/jscrewit.js', `// JScrewIt ${version} – ${homepage}\n`);
@@ -113,8 +132,8 @@ async function makeArt()
     const { promise }               = require('art-js');
     const { promises: { mkdir } }   = require('fs');
 
-    await mkdir('.tmp-src', { recursive: true });
-    await promise('.tmp-src/art.js', { css: true, off: true, on: true });
+    await mkdir('.tmp-src/ui', { recursive: true });
+    await promise('.tmp-src/ui/art.js', { css: true, off: true, on: true });
 }
 
 function makeWorker()
@@ -136,14 +155,14 @@ function makeWorker()
             },
         ),
     )
-    .pipe(dest('.tmp-src'));
+    .pipe(dest('.tmp-src/ui'));
     return stream;
 }
 
 async function bundleUI()
 {
     const inputOptions = { input: 'src/ui/ui-main.js' };
-    await bundle(inputOptions, '.tmp-src/ui.js');
+    await bundle(inputOptions, '.tmp-src/ui/ui.js');
 }
 
 task('bundle:ui', series(parallel(makeArt, makeWorker), bundleUI));
@@ -205,7 +224,7 @@ task
         const uglify = require('gulp-uglify');
 
         const stream =
-        src('.tmp-src/ui.js').pipe(uglify({ compress: { passes: 3 } })).pipe(dest('ui'));
+        src('.tmp-src/ui/ui.js').pipe(uglify({ compress: { passes: 3 } })).pipe(dest('ui'));
         return stream;
     },
 );
@@ -256,6 +275,7 @@ task
     series
     (
         parallel('clean', 'lint'),
+        'prepare:lib',
         parallel('bundle:lib', 'bundle:ui'),
         'test',
         parallel('minify:lib', 'minify:ui', 'feature-doc'),

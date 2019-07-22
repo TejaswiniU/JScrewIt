@@ -24,8 +24,13 @@ export var _Object_create                   = _Object.create;
 export var _Object_defineProperties         = _Object.defineProperties;
 export var _Object_defineProperty           = _Object.defineProperty;
 export var _Object_freeze                   = _Object.freeze;
-export var _Object_getOwnPropertyDescriptor = _Object.getOwnPropertyDescriptor;
-export var _Object_keys                     = _Object.keys;
+
+export var _Object_getOwnPropertyDescriptor =
+_Object.getOwnPropertyDescriptor as <T extends { }>(o: T, p: keyof T) => PropertyDescriptor;
+
+export var _Object_keys:
+<T extends { }>(obj: T) => (keyof T)[] =
+_Object.keys;
 
 export var _RegExp                          = RegExp;
 
@@ -37,26 +42,26 @@ export var _TypeError                       = TypeError;
 
 export var _parseInt                        = parseInt;
 
-export function assignNoEnum(target, source)
+export function assignNoEnum<T extends { }>(target: object, source: T): object
 {
-    var descriptors = { };
+    var descriptors: { [K in keyof T]?: PropertyDescriptor } = { };
     var names = _Object_keys(source);
     names.forEach
     (
-        function (name)
+        function (name): void
         {
             var descriptor = _Object_getOwnPropertyDescriptor(source, name);
             descriptor.enumerable = false;
             descriptors[name] = descriptor;
         }
     );
-    _Object_defineProperties(target, descriptors);
+    _Object_defineProperties(target, descriptors as PropertyDescriptorMap);
     return target;
 }
 
-export var createEmpty = _Object_create.bind(null, null);
+export var createEmpty = _Object_create.bind(null, null, undefined as unknown as { });
 
-export function esToString(arg)
+export function esToString(arg: unknown): string
 {
     if (typeof arg === 'symbol')
         throw new _TypeError('Cannot convert a symbol to a string');
@@ -64,12 +69,12 @@ export function esToString(arg)
     return str;
 }
 
-export function noProto(obj)
+export function noProto(obj: object): { }
 {
     var result = createEmpty();
     _Object_keys(obj).forEach
     (
-        function (name)
+        function (name): void
         {
             result[name] = obj[name];
         }
