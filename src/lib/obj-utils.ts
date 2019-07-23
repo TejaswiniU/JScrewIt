@@ -42,9 +42,9 @@ export var _TypeError                       = TypeError;
 
 export var _parseInt                        = parseInt;
 
-export function assignNoEnum<T extends { }>(target: object, source: T): object
+export function assignNoEnum<T extends { }, U extends { }>(target: T, source: U): T
 {
-    var descriptors: { [K in keyof T]?: PropertyDescriptor } = { };
+    var descriptors: { [K in keyof U]?: PropertyDescriptor } = { };
     var names = _Object_keys(source);
     names.forEach
     (
@@ -69,12 +69,12 @@ export function esToString(arg: unknown): string
     return str;
 }
 
-export function noProto(obj: object): { }
+export function noProto<T extends { }>(obj: T): { __proto__: null; }
 {
     var result = createEmpty();
     _Object_keys(obj).forEach
     (
-        function (name): void
+        (name: keyof T): void =>
         {
             result[name] = obj[name];
         }

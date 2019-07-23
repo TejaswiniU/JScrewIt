@@ -37,7 +37,6 @@ task
             {
                 src: ['src/**/*.{js,ts}', '!src/ui/worker.js'],
                 parserOptions: { project: 'tsconfig.json', sourceType: 'module' },
-                rules: { '@typescript-eslint/unbound-method': 'off' },
             },
             {
                 src: ['gulpfile.js', 'build/**/*.js', '!build/legacy/**'],
