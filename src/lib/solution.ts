@@ -1,15 +1,5 @@
-import { _Object_defineProperty } from './obj-utils';
-
-export const LEVEL_NUMERIC      = -1;
-export const LEVEL_OBJECT       = 0;
-export const LEVEL_STRING       = 1;
-export const LEVEL_UNDEFINED    = -2;
-
-export type Level =
-| typeof LEVEL_NUMERIC
-| typeof LEVEL_OBJECT
-| typeof LEVEL_STRING
-| typeof LEVEL_UNDEFINED;
+import Level                        from './level';
+import { _Object_defineProperty }   from './obj-utils';
 
 function setHasOuterPlus(solution: Solution, hasOuterPlus: boolean): void
 {
@@ -41,8 +31,10 @@ export default class Solution
         _Object_defineProperty(this, 'appendLength', { enumerable: true, value: appendLength });
     }
 
-    // Determine whether the specified solution contains a plus sign out of brackets not preceded by
-    // an exclamation mark or by another plus sign.
+    /**
+     * Determines whether this solution contains a plus sign out of brackets not preceded by an
+     * exclamation mark or by another plus sign.
+     */
     public get hasOuterPlus(): boolean
     {
         let str = this.replacement;

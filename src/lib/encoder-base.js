@@ -13,9 +13,10 @@ import
     SIMPLE,
 }
 from './definitions';
-import expressParse                                                 from './express-parse';
-import { featureFromMask }                                          from './features';
-import { maskIncludes, maskNew }                                    from './mask';
+import expressParse                 from './express-parse';
+import { featureFromMask }          from './features';
+import Level                        from './level';
+import { maskIncludes, maskNew }    from './mask';
 import
 {
     _Array,
@@ -44,7 +45,7 @@ import
     ScrewBuffer,
 }
 from './screw-buffer';
-import Solution, { LEVEL_NUMERIC, LEVEL_STRING, LEVEL_UNDEFINED }   from './solution';
+import Solution                     from './solution';
 
 /** @class Encoder */
 
@@ -324,7 +325,7 @@ export var replaceStaticString;
                 }
                 replacement = shortestOf(replacements);
             }
-            var solution = new Solution(replacement, LEVEL_STRING, false);
+            var solution = new Solution(replacement, Level.STRING, false);
             return solution;
         },
 
@@ -621,7 +622,7 @@ export var replaceStaticString;
             {
                 var count = terms.length;
                 var maxCoreLength = maxLength - (bondStrength ? 2 : 0);
-                var minOutputLevel = LEVEL_UNDEFINED;
+                var minOutputLevel = Level.UNDEFINED;
                 for (var index = 0; index < count; ++index)
                 {
                     var term = terms[index];
@@ -631,7 +632,7 @@ export var replaceStaticString;
                         var firstSolution =
                         output ? new Solution(output, minOutputLevel) : undefined;
                         output = strAppender(this, term.value, firstSolution);
-                        minOutputLevel = LEVEL_STRING;
+                        minOutputLevel = Level.STRING;
                     }
                     else
                     {
@@ -646,7 +647,7 @@ export var replaceStaticString;
                         if (output)
                         {
                             output += '+' + termOutput;
-                            minOutputLevel = _Math_max(minOutputLevel, LEVEL_NUMERIC);
+                            minOutputLevel = _Math_max(minOutputLevel, Level.NUMERIC);
                         }
                         else
                             output = termOutput;
@@ -859,7 +860,7 @@ export var replaceStaticString;
                         }
                         solution.char = char;
                         if (solution.level == null)
-                            solution.level = LEVEL_STRING;
+                            solution.level = Level.STRING;
                         charCache[char] = solution;
                     }
                 );
@@ -918,7 +919,7 @@ export var replaceStaticString;
             }
             var fullExpr = '(' + paddingBlock + '+' + expr + ')[' + indexer + ']';
             var replacement = this.replaceExpr(fullExpr);
-            var solution = new Solution(replacement, LEVEL_STRING, false);
+            var solution = new Solution(replacement, Level.STRING, false);
             return solution;
         },
 

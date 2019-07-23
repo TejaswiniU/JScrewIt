@@ -9,8 +9,9 @@
 // The leading append plus is omitted when the optimized cluster is the first element of a group.
 
 import { replaceMultiDigitNumber }          from './encoder-base';
+import Level                                from './level';
 import { _String, _parseInt, createEmpty }  from './obj-utils';
-import Solution, { LEVEL_STRING }           from './solution';
+import Solution                             from './solution';
 
 var BOND_EXTRA_LENGTH = 2; // Extra length of bonding parentheses "(" and ")".
 var CLUSTER_EXTRA_LENGTHS = [];
@@ -49,7 +50,7 @@ function createOptimizer(toStringReplacement)
             var replacement =
             '(+(' + decimalReplacement + '))[' + toStringReplacement + '](' + radixReplacement +
             ')';
-            var solution = new Solution(replacement, LEVEL_STRING, false);
+            var solution = new Solution(replacement, Level.STRING, false);
             return solution;
         };
         return clusterer;

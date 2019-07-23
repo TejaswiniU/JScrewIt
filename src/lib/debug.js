@@ -23,6 +23,7 @@ import { STRATEGIES, createReindexMap }                     from './encoder-ext'
 import { featureFromMask, isMaskCompatible }                from './features';
 import createFigurator                                      from './figurator';
 import { JScrewIt, getValidFeatureMask }                    from './jscrewit-base';
+import Level                                                from './level';
 import { maskIncludes, maskIsEmpty, maskNew, maskUnion }    from './mask';
 import
 {
@@ -185,6 +186,7 @@ if (typeof DEBUG === 'undefined' || /* istanbul ignore next */ DEBUG)
         (
             { },
             {
+                Level:                      Level,
                 Solution:                   Solution,
                 createBridgeSolution:       createBridgeSolution,
                 createClusteringPlan:       createClusteringPlan,

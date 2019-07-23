@@ -4,10 +4,11 @@
 // Compared to generic purpose encoding, definition encoding differs mainly in that every identifier
 // used must be defined itself, too, in a constant definition.
 
-import { define, defineList, defineWithArrayLike }                  from './definers';
-import { Feature }                                                  from './features';
-import { _Object_defineProperty, noProto }                          from './obj-utils';
-import Solution, { LEVEL_NUMERIC, LEVEL_OBJECT, LEVEL_UNDEFINED }   from './solution';
+import { define, defineList, defineWithArrayLike }  from './definers';
+import { Feature }                                  from './features';
+import Level                                        from './level';
+import { _Object_defineProperty, noProto }          from './obj-utils';
+import Solution                                     from './solution';
 
 function defineSimple(simple, expr, level)
 {
@@ -28,11 +29,11 @@ export var JSFUCK_INFINITY = '1e1000';
 
 export var SIMPLE = { };
 
-defineSimple('false',       '![]',              LEVEL_NUMERIC);
-defineSimple('true',        '!![]',             LEVEL_NUMERIC);
-defineSimple('undefined',   '[][[]]',           LEVEL_UNDEFINED);
-defineSimple('NaN',         '+[false]',         LEVEL_NUMERIC);
-defineSimple('Infinity',    JSFUCK_INFINITY,    LEVEL_NUMERIC);
+defineSimple('false',       '![]',              Level.NUMERIC);
+defineSimple('true',        '!![]',             Level.NUMERIC);
+defineSimple('undefined',   '[][[]]',           Level.UNDEFINED);
+defineSimple('NaN',         '+[false]',         Level.NUMERIC);
+defineSimple('Infinity',    JSFUCK_INFINITY,    Level.NUMERIC);
 
 export var FROM_CHAR_CODE;
 export var FROM_CHAR_CODE_CALLBACK_FORMATTER;
@@ -1227,7 +1228,7 @@ export var createBridgeSolution;
         Object:         define({ expr: 'Object.name', optimize: { toStringOpt: true } }, NAME),
         RegExp:         define({ expr: 'RegExp.name', optimize: { toStringOpt: true } }, NAME),
         String:         define('String.name', NAME),
-        'f,a,l,s,e':    define({ expr: 'F_A_L_S_E', level: LEVEL_OBJECT }),
+        'f,a,l,s,e':    define({ expr: 'F_A_L_S_E', level: Level.OBJECT }),
         fromCharCo:
         define({ expr: '"from3har3o".split(3).join("C")', optimize: { toStringOpt: true } }),
         mCh:            define('atob("bUNo")', Feature.ATOB),
@@ -1505,7 +1506,7 @@ export var createBridgeSolution;
     function (bridge)
     {
         var replacement = '[[]]' + bridge + '([[]])';
-        var solution = new Solution(replacement, LEVEL_OBJECT, false);
+        var solution = new Solution(replacement, Level.OBJECT, false);
         var appendLength = bridge.length - 1;
         solution.appendLength = appendLength;
         solution.bridge = bridge;
@@ -1672,7 +1673,7 @@ export var createBridgeSolution;
     for (var digit = 0; digit <= 9; ++digit)
     {
         var expr = replaceDigit(digit);
-        CHARACTERS[digit] = { expr: expr, level: LEVEL_NUMERIC };
+        CHARACTERS[digit] = { expr: expr, level: Level.NUMERIC };
     }
 }
 )();

@@ -31,7 +31,6 @@
     }
 
     var EXPECTED_REPLACEMENT = '"feet"';
-    var LEVEL_OBJECT = 0;
     var SOLUTIONS =
     {
         e: { appendLength: 26, char: 'e' },
@@ -167,7 +166,7 @@
                     test
                     (
                         'an object integral cluster without bonding or string forcing',
-                        { complexAppendLength: 80, complexLevel: LEVEL_OBJECT }
+                        { complexAppendLength: 80, complexLevel: JScrewIt.debug.Level.OBJECT }
                     );
                     test
                     (
@@ -182,7 +181,11 @@
                     test
                     (
                         'an integral object cluster with string forcing',
-                        { complexAppendLength: 77, complexLevel: LEVEL_OBJECT, forceString: true }
+                        {
+                            complexAppendLength: 77,
+                            complexLevel: JScrewIt.debug.Level.OBJECT,
+                            forceString: true,
+                        }
                     );
                     test
                     (
@@ -206,7 +209,7 @@
                         'a partial object cluster with string forcing',
                         {
                             complexAppendLength:    80,
-                            complexLevel:           LEVEL_OBJECT,
+                            complexLevel:           JScrewIt.debug.Level.OBJECT,
                             forceString:            true,
                             solutions:
                             [SOLUTIONS.u, SOLUTIONS.f, SOLUTIONS.e, SOLUTIONS.e, SOLUTIONS.t],

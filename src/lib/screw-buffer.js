@@ -1,7 +1,7 @@
-import createClusteringPlan
-from './clustering-plan';
-import { _Math_max, _Math_pow, assignNoEnum }                                   from './obj-utils';
-import Solution, { LEVEL_NUMERIC, LEVEL_OBJECT, LEVEL_STRING, LEVEL_UNDEFINED } from './solution';
+import createClusteringPlan                     from './clustering-plan';
+import Level                                    from './level';
+import { _Math_max, _Math_pow, assignNoEnum }   from './obj-utils';
+import Solution                                 from './solution';
 
 // This implementation assumes that all numeric solutions have an outer plus, and all other
 // character solutions have none.
@@ -148,7 +148,7 @@ export var optimizeSolutions;
             var solution = solutions[0];
             array = [solution];
             multiPart = false;
-            notStr = solution.level < LEVEL_STRING;
+            notStr = solution.level < Level.STRING;
         }
         if (notStr && groupForceString)
         {
@@ -163,7 +163,7 @@ export var optimizeSolutions;
 
     function getNumericJoinCost(level0, level1)
     {
-        var joinCost = level0 > LEVEL_UNDEFINED || level1 > LEVEL_UNDEFINED ? 2 : 3;
+        var joinCost = level0 > Level.UNDEFINED || level1 > Level.UNDEFINED ? 2 : 3;
         return joinCost;
     }
 
@@ -176,7 +176,7 @@ export var optimizeSolutions;
         var solutionRight;
         var splitCost =
         (
-            rightmost && levelCenter < LEVEL_NUMERIC ?
+            rightmost && levelCenter < Level.NUMERIC ?
             3 :
             isNumericJoin(levelCenter, levelRight = (solutionRight = solutions[index + 1]).level) ?
             getNumericJoinCost(levelCenter, levelRight) - (solutionRight.hasOuterPlus ? 2 : 0) :
@@ -193,15 +193,15 @@ export var optimizeSolutions;
 
     function isNumericJoin(level0, level1)
     {
-        var result = level0 < LEVEL_OBJECT && level1 < LEVEL_OBJECT;
+        var result = level0 < Level.OBJECT && level1 < Level.OBJECT;
         return result;
     }
 
     function isUnluckyRightEnd(solutions, firstIndex)
     {
         var result =
-        solutions[firstIndex].level < LEVEL_NUMERIC &&
-        solutions[firstIndex + 1].level > LEVEL_UNDEFINED;
+        solutions[firstIndex].level < Level.NUMERIC &&
+        solutions[firstIndex + 1].level > Level.UNDEFINED;
         return result;
     }
 
@@ -218,11 +218,11 @@ export var optimizeSolutions;
         var array;
         var solution0 = solutions[offset];
         var solution1 = solutions[offset + 1];
-        if (solution0.level < LEVEL_OBJECT && solution1.level < LEVEL_OBJECT)
+        if (solution0.level < Level.OBJECT && solution1.level < Level.OBJECT)
         {
-            if (solution1.level > LEVEL_UNDEFINED)
+            if (solution1.level > Level.UNDEFINED)
                 array = [solution0, '+[', solution1, ']'];
-            else if (solution0.level > LEVEL_UNDEFINED)
+            else if (solution0.level > Level.UNDEFINED)
                 array = ['[', solution0, ']+', solution1];
             else
                 array = [solution0, '+[]+', solution1];
@@ -250,7 +250,7 @@ export var optimizeSolutions;
             else
             {
                 var solution = solutions[offset];
-                str = solution + (solution.level < LEVEL_NUMERIC ? '+[]' : '');
+                str = solution + (solution.level < Level.NUMERIC ? '+[]' : '');
             }
         }
         else
@@ -258,7 +258,7 @@ export var optimizeSolutions;
         return str;
     }
 
-    var EMPTY_SOLUTION = new Solution('[]', LEVEL_OBJECT, false);
+    var EMPTY_SOLUTION = new Solution('[]', Level.OBJECT, false);
 
     ScrewBuffer =
     function (bond, forceString, groupThreshold, optimizerList)
@@ -343,7 +343,7 @@ export var optimizeSolutions;
                     if (solutionCount < 2)
                     {
                         var solution = solutions[0] || EMPTY_SOLUTION;
-                        var multiPart = forceString && solution.level < LEVEL_STRING;
+                        var multiPart = forceString && solution.level < Level.STRING;
                         str = solution.replacement;
                         if (multiPart)
                             str += '+[]';

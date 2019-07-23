@@ -43,11 +43,6 @@
 
     var INITIAL_APPEND_LENGTH = -3;
 
-    var LEVEL_NUMERIC   = -1;
-    var LEVEL_OBJECT    = 0;
-    var LEVEL_STRING    = 1;
-    var LEVEL_UNDEFINED = -2;
-
     var JScrewIt = typeof module !== 'undefined' ? require('../node-jscrewit-test') : self.JScrewIt;
 
     describe
@@ -146,13 +141,15 @@
 
             var createScrewBuffer = JScrewIt.debug.createScrewBuffer;
             var Solution = JScrewIt.debug.Solution;
-            var solutionA = new Solution('[![]+[]][+[]]', LEVEL_STRING);
-            var solution0 = new Solution('+[]', LEVEL_NUMERIC);
-            var solutionFalse = new Solution('![]', LEVEL_NUMERIC);
+            var solutionA = new Solution('[![]+[]][+[]]', JScrewIt.debug.Level.STRING);
+            var solution0 = new Solution('+[]', JScrewIt.debug.Level.NUMERIC);
+            var solutionFalse = new Solution('![]', JScrewIt.debug.Level.NUMERIC);
             var solutionComma = createCommaSolution();
-            var solutionUndefined = new Solution('[][[]]', LEVEL_UNDEFINED);
-            var strTestOptimizer = createTestOptimizer(new Solution('""', LEVEL_STRING));
-            var objTestOptimizer = createTestOptimizer(new Solution('{}', LEVEL_OBJECT));
+            var solutionUndefined = new Solution('[][[]]', JScrewIt.debug.Level.UNDEFINED);
+            var strTestOptimizer =
+            createTestOptimizer(new Solution('""', JScrewIt.debug.Level.STRING));
+            var objTestOptimizer =
+            createTestOptimizer(new Solution('{}', JScrewIt.debug.Level.OBJECT));
 
             testShortEncodings
             (
@@ -317,7 +314,8 @@
                     var buffer = createScrewBuffer(false, true, 7, []);
                     for (var index = 0; index < 26; ++index)
                     {
-                        var solution = new Solution(String.fromCharCode(65 + index), LEVEL_OBJECT);
+                        var solution =
+                        new Solution(String.fromCharCode(65 + index), JScrewIt.debug.Level.OBJECT);
                         buffer.append(solution);
                     }
                     var expectedLength = INITIAL_APPEND_LENGTH + 26 * 2;
