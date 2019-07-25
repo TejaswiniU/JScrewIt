@@ -52,7 +52,7 @@ export function assignNoEnum<T extends { }, U extends { }>(target: T, source: U)
             const descriptor = _Object_getOwnPropertyDescriptor(source, name);
             descriptor.enumerable = false;
             descriptors[name] = descriptor;
-        }
+        },
     );
     _Object_defineProperties(target, descriptors as PropertyDescriptorMap);
     return target;
@@ -76,7 +76,7 @@ export function noProto<T extends { }>(obj: T): { __proto__: null; }
         (name: keyof T): void =>
         {
             result[name] = obj[name];
-        }
+        },
     );
     return result;
 }
