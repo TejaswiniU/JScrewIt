@@ -101,9 +101,11 @@ task
         {
             const ts = require('gulp-typescript');
 
-            const tsResult =
-            src('src/lib/*.ts').pipe(ts({ module: 'es2015', strict: true, target: 'es5' }));
-            const stream = tsResult.js.pipe(dest('.tmp-src/lib'));
+            const stream =
+            src('src/lib/*.ts')
+            .pipe(ts.createProject('tsconfig.json')())
+            .js
+            .pipe(dest('.tmp-src/lib'));
             return stream;
         },
     ),

@@ -28,15 +28,184 @@ declare global
     const uneval: unknown;
 }
 
-interface Feature
+const ALL: { [name: string]: PredefinedFeature; } = createEmpty();
+
+const ELEMENTARY: PredefinedFeature[] = [];
+
+export class Feature
 {
-    readonly attributes:        { [key: string]: unknown; };
-    readonly mask:              Mask;
-    readonly name?:             string;
-    readonly canonicalNames:    string[];
+    public readonly attributes!:        { [key: string]: unknown; };
+    public readonly canonicalNames!:    string[];
+    public readonly mask!:              Mask;
+    public readonly name?:              string;
+
+    public constructor()
+    {
+        const mask = validMaskFromArguments(arguments);
+        const featureObj: Feature =
+        this instanceof Feature ? this : _Object_create(featurePrototype);
+        initMask(featureObj, mask);
+        return featureObj;
+    }
 }
 
+const featurePrototype = Feature.prototype;
+
+type FeatureArgument = FeatureElement | readonly FeatureElement[];
+
 type FeatureElement = Feature | string;
+
+type FeatureInfo =
+(
+    | { readonly description: string; readonly engine?: undefined; }
+    | { readonly description?: undefined; readonly engine: string; }
+)
+&
+{
+    readonly check?:        () => unknown;
+    readonly includes?:     string[];
+    readonly excludes?:     string[];
+    readonly attributes?:   { [key: string]: unknown; };
+};
+
+interface PredefinedFeature extends Feature { name: string; }
+
+function areCompatible(): boolean
+{
+    let arg0;
+    const features: ArrayLike<FeatureElement> =
+    arguments.length === 1 && _Array_isArray(arg0 = arguments[0 as number]) ? arg0 : arguments;
+    let compatible;
+    if (features.length > 1)
+    {
+        const mask = featureArrayLikeToMask(features);
+        compatible = isMaskCompatible(mask);
+    }
+    else
+        compatible = true;
+    return compatible;
+}
+
+function areEqual(): boolean
+{
+    let mask: Mask;
+    const equal =
+    _Array_prototype_every.call
+    (
+        arguments,
+        (arg: FeatureArgument, index): boolean =>
+        {
+            let returnValue;
+            const otherMask = validMaskFromArrayOrStringOrFeature(arg);
+            if (index)
+                returnValue = maskAreEqual(otherMask, mask);
+            else
+            {
+                mask = otherMask;
+                returnValue = true;
+            }
+            return returnValue;
+        },
+    );
+    return equal;
+}
+
+function checkSelfFeature(this: (str: string) => unknown): unknown
+{
+    // ('' + self) throws an error inside a web worker in Safari 8 and 9.
+    let str;
+    try
+    {
+        str = `${self}`;
+    }
+    catch
+    {
+        return false;
+    }
+    const available = this(str);
+    return available;
+}
+
+function commonOf(): Feature | null
+{
+    let returnValue: Feature | null;
+    if (arguments.length)
+    {
+        let mask!: Mask;
+        _Array_prototype_forEach.call
+        (
+            arguments,
+            (arg: FeatureArgument): void =>
+            {
+                const otherMask = validMaskFromArrayOrStringOrFeature(arg);
+                if (mask != null)
+                    mask = maskIntersection(mask, otherMask);
+                else
+                    mask = otherMask;
+            },
+        );
+        returnValue = featureFromMask(mask);
+    }
+    else
+        returnValue = null;
+    return returnValue;
+}
+
+function createEngineFeatureDescription(engine: string): string
+{
+    const description = `Features available in ${engine}.`;
+    return description;
+}
+
+function createFeature
+(
+    name:           string,
+    description:    string,
+    mask:           Mask,
+    check?:         () => boolean,
+    engine?:        string,
+    attributes?:    object,
+    elementary?:    unknown,
+):
+PredefinedFeature
+{
+    attributes = _Object_freeze(attributes || { });
+    const descriptors: PropertyDescriptorMap =
+    {
+        attributes:     { value: attributes },
+        check:          { value: check },
+        description:    { value: description },
+        engine:         { value: engine },
+        name:           { value: name },
+    };
+    if (elementary)
+        descriptors.elementary = { value: true };
+    const featureObj = _Object_create(featurePrototype, descriptors);
+    initMask(featureObj, mask);
+    return featureObj;
+}
+
+function featureArrayLikeToMask(arrayLike: ArrayLike<FeatureElement>): Mask
+{
+    let mask = maskNew();
+    _Array_prototype_forEach.call
+    (
+        arrayLike,
+        (feature: FeatureElement): void =>
+        {
+            const otherMask = maskFromStringOrFeature(feature);
+            mask = maskUnion(mask, otherMask);
+        },
+    );
+    return mask;
+}
+
+export function featureFromMask(mask: Mask): Feature
+{
+    const featureObj = _Object_create(featurePrototype);
+    initMask(featureObj, mask);
+    return featureObj;
+}
 
 export function featuresToMask(featureObjs: readonly Feature[]): Mask
 {
@@ -51,336 +220,254 @@ export function featuresToMask(featureObjs: readonly Feature[]): Mask
     return mask;
 }
 
-export let Feature: { readonly prototype: Feature; new (): Feature; (): Feature; };
-
-export let featureFromMask: (mask: Mask) => Feature;
-export let isMaskCompatible: (mask: Mask) => boolean;
-export let validMaskFromArrayOrStringOrFeature:
-(arg: FeatureElement | readonly FeatureElement[]) => Mask;
-
-((): void =>
+function initMask(featureObj: Feature, mask: Mask): void
 {
-    interface PredefinedFeature extends Feature { name: string; }
+    _Object_defineProperty(featureObj, 'mask', { value: _Object_freeze(mask) });
+}
 
-    type FeatureInfo =
-    ({ readonly description: string; } | { readonly engine: string; })
-    &
-    {
-        readonly check?:        () => unknown;
-        readonly includes?:     string[];
-        readonly excludes?:     string[];
-        readonly attributes?:   { [key: string]: unknown; };
-    };
+export function isMaskCompatible(mask: Mask): boolean
+{
+    const compatible =
+    incompatibleMaskList.every
+    ((incompatibleMask: Mask): boolean => !maskIncludes(mask, incompatibleMask));
+    return compatible;
+}
 
-    function areCompatible(): boolean
+/**
+ * Node.js custom inspection function.
+ * Set on `Feature.prototype` with name `"inspect"` for Node.js ≤ 8.6.x and with symbol
+ * `Symbol.for("nodejs.util.inspect.custom")` for Node.js ≥ 6.6.x.
+ *
+ * @function inspect
+ *
+ * @see
+ * {@link https://tiny.cc/j4wz9y|Custom inspection functions on Objects} for further
+ * information.
+ */
+function inspect(this: Feature, depth: never, opts: any): unknown
+{
+    let returnValue;
+    const str = this.toString();
+    if (opts !== undefined) // opts can be undefined in Node.js 0.10.0.
+        returnValue = opts.stylize(str, 'jscrewit-feature');
+    else
+        returnValue = str;
+    return returnValue;
+}
+
+function isExcludingAttribute
+(attributeCache: { [key: string]: boolean; }, attributeName: string, featureObjs: Feature[]):
+boolean
+{
+    let returnValue = attributeCache[attributeName];
+    if (returnValue === undefined)
     {
-        let arg0;
-        const features =
-        arguments.length === 1 && _Array_isArray(arg0 = (arguments as any)['0']) ? arg0 : arguments;
-        let compatible;
-        if (features.length > 1)
-        {
-            const mask = featureArrayLikeToMask(features);
-            compatible = isMaskCompatible(mask);
-        }
-        else
-            compatible = true;
-        return compatible;
+        attributeCache[attributeName] =
+        returnValue =
+        featureObjs.some
+        ((featureObj: Feature): boolean => attributeName in featureObj.attributes);
     }
+    return returnValue;
+}
 
-    function areEqual(): boolean
+function maskFromStringOrFeature(arg: FeatureElement): Mask
+{
+    let mask;
+    if (arg instanceof Feature)
+        ({ mask } = arg);
+    else
     {
-        let mask: Mask;
-        const equal =
+        const name = esToString(arg);
+        const featureObj = ALL[name];
+        if (!featureObj)
+            throw new _Error(`Unknown feature ${_JSON_stringify(name)}`);
+        ({ mask } = featureObj);
+    }
+    return mask;
+}
+
+function registerFeature(name: string, featureObj: PredefinedFeature): void
+{
+    const descriptor = { enumerable: true, value: featureObj };
+    _Object_defineProperty(Feature, name, descriptor);
+    ALL[name] = featureObj;
+}
+
+export function validMaskFromArrayOrStringOrFeature(arg: FeatureArgument): Mask
+{
+    let mask;
+    if (_Array_isArray(arg))
+    {
+        mask = featureArrayLikeToMask(arg);
+        if (arg.length > 1)
+            validateMask(mask);
+    }
+    else
+        mask = maskFromStringOrFeature(arg);
+    return mask;
+}
+
+function validateMask(mask: Mask): void
+{
+    if (!isMaskCompatible(mask))
+        throw new _Error('Incompatible features');
+}
+
+function validMaskFromArguments(args: ArrayLike<FeatureArgument>): Mask
+{
+    let mask = maskNew();
+    let validationNeeded = 0;
+    _Array_prototype_forEach.call
+    (
+        args,
+        (arg: FeatureArgument): void =>
+        {
+            let otherMask;
+            if (_Array_isArray(arg))
+            {
+                otherMask = featureArrayLikeToMask(arg);
+                validationNeeded |= arg.length > 1 as any;
+            }
+            else
+                otherMask = maskFromStringOrFeature(arg);
+            mask = maskUnion(mask, otherMask);
+        },
+    );
+    validationNeeded |= args.length > 1 as any;
+    if (validationNeeded)
+        validateMask(mask);
+    return mask;
+}
+
+function wrapCheck(check: () => unknown): () => boolean
+{
+    const returnValue = (): boolean => !!check();
+    return returnValue;
+}
+
+const includesMap: { [key: string]: string[]; } = createEmpty();
+
+let incompatibleMaskList: Mask[];
+
+const protoSource =
+{
+    get canonicalNames(this: Feature): string[]
+    {
+        const { mask } = this;
+        const featureNameSet: { [key: string]: null; } = createEmpty();
+        const allIncludes: string[] = [];
+        ELEMENTARY.forEach
+        (
+            (featureObj: PredefinedFeature): void =>
+            {
+                const included = maskIncludes(mask, featureObj.mask);
+                if (included)
+                {
+                    const { name } = featureObj;
+                    featureNameSet[name] = null;
+                    const includes = includesMap[name];
+                    _Array_prototype_push.apply(allIncludes, includes);
+                }
+            },
+        );
+        allIncludes.forEach
+        (
+            (name: string): void =>
+            {
+                delete featureNameSet[name];
+            },
+        );
+        const names = _Object_keys(featureNameSet).sort();
+        return names;
+    },
+
+    description: undefined,
+
+    elementary: false,
+
+    get elementaryNames(this: Feature): string[]
+    {
+        const names: string[] = [];
+        const { mask } = this;
+        ELEMENTARY.forEach
+        (
+            (featureObj: PredefinedFeature): void =>
+            {
+                const included = maskIncludes(mask, featureObj.mask);
+                if (included)
+                    names.push(featureObj.name);
+            },
+        );
+        return names;
+    },
+
+    includes(this: Feature): boolean
+    {
+        const { mask } = this;
+        const included =
         _Array_prototype_every.call
         (
             arguments,
-            (arg: FeatureElement | readonly FeatureElement[], index): boolean =>
+            (arg: FeatureArgument): boolean =>
             {
-                let returnValue;
                 const otherMask = validMaskFromArrayOrStringOrFeature(arg);
-                if (index)
-                    returnValue = maskAreEqual(otherMask, mask);
-                else
-                {
-                    mask = otherMask;
-                    returnValue = true;
-                }
+                const returnValue = maskIncludes(mask, otherMask);
                 return returnValue;
             },
         );
-        return equal;
-    }
+        return included;
+    },
 
-    function checkSelfFeature(this: (str: string) => unknown): unknown
-    {
-        // ('' + self) throws an error inside a web worker in Safari 8 and 9.
-        let str;
-        try
-        {
-            str = `${self}`;
-        }
-        catch
-        {
-            return false;
-        }
-        const available = this(str);
-        return available;
-    }
+    inspect,
 
-    function commonOf(): Feature | null
-    {
-        let returnValue: Feature | null;
-        if (arguments.length)
-        {
-            let mask: undefined | Mask;
-            _Array_prototype_forEach.call
-            (
-                arguments,
-                (arg: FeatureElement | readonly FeatureElement[]): void =>
-                {
-                    const otherMask = validMaskFromArrayOrStringOrFeature(arg);
-                    if (mask != null)
-                        mask = maskIntersection(mask, otherMask);
-                    else
-                        mask = otherMask;
-                },
-            );
-            returnValue = featureFromMask(mask as Mask);
-        }
-        else
-            returnValue = null;
-        return returnValue;
-    }
+    name: undefined,
 
-    function completeExclusions(name: string): void
-    {
-        const info: any = FEATURE_INFOS[name];
-        const { excludes } = info;
-        if (excludes)
-        {
-            const featureObj = ALL[name];
-            const { mask } = featureObj;
-            excludes.forEach
-            (
-                (exclude: string): void =>
-                {
-                    const excludeMask = completeFeature(exclude);
-                    const incompatibleMask = maskUnion(mask, excludeMask);
-                    incompatibleMaskMap[incompatibleMask as any] = incompatibleMask;
-                },
-            );
-        }
-    }
-
-    function completeFeature(name: string): Mask
-    {
-        let mask: Mask;
-        let featureObj = ALL[name];
-        if (featureObj)
-            ({ mask } = featureObj);
-        else
-        {
-            const info: any = FEATURE_INFOS[name];
-            if (typeof info === 'string')
-            {
-                mask = completeFeature(info);
-                featureObj = ALL[info];
-            }
-            else
-            {
-                let { check } = info;
-                if (check)
-                {
-                    mask = maskWithBit(bitIndex++);
-                    if (check())
-                        autoMask = maskUnion(autoMask, mask);
-                    check = wrapCheck(check);
-                }
-                else
-                    mask = maskNew();
-                const includes: string[] = includesMap[name] = info.includes || [];
-                includes.forEach
-                (
-                    (include: string): void =>
-                    {
-                        const includeMask = completeFeature(include);
-                        mask = maskUnion(mask, includeMask);
-                    },
-                );
-                let description;
-                const { engine } = info;
-                if (engine == null)
-                    ({ description } = info);
-                else
-                    description = createEngineFeatureDescription(engine);
-                const elementary = check || info.excludes;
-                featureObj =
-                createFeature(name, description, mask, check, engine, info.attributes, elementary);
-                if (elementary)
-                    ELEMENTARY.push(featureObj);
-            }
-            registerFeature(name, featureObj);
-        }
-        return mask;
-    }
-
-    function createEngineFeatureDescription(engine: string): string
-    {
-        const description = `Features available in ${engine}.`;
-        return description;
-    }
-
-    function createFeature
+    restrict
     (
-        name:           string,
-        description:    string,
-        mask:           Mask,
-        check?:         () => boolean,
-        engine?:        string,
-        attributes?:    object,
-        elementary?:    boolean,
+        this: Feature,
+        environment: 'forced-strict-mode' | 'web-worker',
+        engineFeatureObjs: PredefinedFeature[],
     ):
     Feature
     {
-        attributes = _Object_freeze(attributes || { });
-        const descriptors: PropertyDescriptorMap =
-        {
-            attributes:     { value: attributes },
-            check:          { value: check },
-            description:    { value: description },
-            engine:         { value: engine },
-            name:           { value: name },
-        };
-        if (elementary)
-            descriptors.elementary = { value: true };
-        const featureObj = _Object_create(featurePrototype, descriptors);
-        initMask(featureObj, mask);
-        return featureObj;
-    }
-
-    function featureArrayLikeToMask(arrayLike: ArrayLike<FeatureElement>): Mask
-    {
-        let mask = maskNew();
-        _Array_prototype_forEach.call
+        let resultMask = maskNew();
+        const thisMask = this.mask;
+        const attributeCache: { [key: string]: boolean; } = createEmpty();
+        ELEMENTARY.forEach
         (
-            arrayLike,
-            (feature: FeatureElement): void =>
+            (featureObj: PredefinedFeature): void =>
             {
-                const otherMask = maskFromStringOrFeature(feature);
-                mask = maskUnion(mask, otherMask);
-            },
-        );
-        return mask;
-    }
-
-    function initMask(featureObj: Feature, mask: Mask): void
-    {
-        _Object_defineProperty(featureObj, 'mask', { value: _Object_freeze(mask) });
-    }
-
-    /**
-     * Node.js custom inspection function.
-     * Set on `Feature.prototype` with name `"inspect"` for Node.js ≤ 8.6.x and with symbol
-     * `Symbol.for("nodejs.util.inspect.custom")` for Node.js ≥ 6.6.x.
-     *
-     * @function inspect
-     *
-     * @see
-     * {@link https://tiny.cc/j4wz9y|Custom inspection functions on Objects} for further
-     * information.
-     */
-    function inspect(this: Feature, depth: never, opts: any): unknown
-    {
-        let returnValue;
-        const str = this.toString();
-        if (opts !== undefined) // opts can be undefined in Node.js 0.10.0.
-            returnValue = opts.stylize(str, 'jscrewit-feature');
-        else
-            returnValue = str;
-        return returnValue;
-    }
-
-    function isExcludingAttribute
-    (attributeCache: { [key: string]: boolean; }, attributeName: string, featureObjs: Feature[]):
-    boolean
-    {
-        let returnValue = attributeCache[attributeName];
-        if (returnValue === undefined)
-        {
-            attributeCache[attributeName] =
-            returnValue =
-            featureObjs.some
-            ((featureObj: Feature): boolean => attributeName in featureObj.attributes);
-        }
-        return returnValue;
-    }
-
-    function maskFromStringOrFeature(arg: FeatureElement): Mask
-    {
-        let mask;
-        if (arg instanceof Feature)
-            ({ mask } = arg);
-        else
-        {
-            const name = esToString(arg);
-            const featureObj = ALL[name];
-            if (!featureObj)
-                throw new _Error(`Unknown feature ${_JSON_stringify(name)}`);
-            ({ mask } = featureObj);
-        }
-        return mask;
-    }
-
-    function registerFeature(name: string, featureObj: Feature): void
-    {
-        const descriptor = { enumerable: true, value: featureObj };
-        _Object_defineProperty(Feature, name, descriptor);
-        ALL[name] = featureObj;
-    }
-
-    function validateMask(mask: Mask): void
-    {
-        if (!isMaskCompatible(mask))
-            throw new _Error('Incompatible features');
-    }
-
-    function validMaskFromArguments
-    (args: ArrayLike<FeatureElement | readonly FeatureElement[]>): Mask
-    {
-        let mask = maskNew();
-        let validationNeeded = 0;
-        _Array_prototype_forEach.call
-        (
-            args,
-            (arg: FeatureElement | readonly FeatureElement[]): void =>
-            {
-                let otherMask;
-                if (_Array_isArray(arg))
+                const otherMask = featureObj.mask;
+                const included = maskIncludes(thisMask, otherMask);
+                if (included)
                 {
-                    otherMask = featureArrayLikeToMask(arg);
-                    validationNeeded |= arg.length > 1 as any;
+                    const attributeValue =
+                    featureObj.attributes[environment] as string | undefined;
+                    if
+                    (
+                        attributeValue === undefined ||
+                        engineFeatureObjs !== undefined &&
+                        !isExcludingAttribute(attributeCache, attributeValue, engineFeatureObjs)
+                    )
+                        resultMask = maskUnion(resultMask, otherMask);
                 }
-                else
-                    otherMask = maskFromStringOrFeature(arg as FeatureElement);
-                mask = maskUnion(mask, otherMask);
             },
         );
-        validationNeeded |= args.length > 1 as any;
-        if (validationNeeded)
-            validateMask(mask);
-        return mask;
-    }
-
-    function wrapCheck(check: () => unknown): () => boolean
-    {
-        const returnValue = (): boolean => !!check();
+        const returnValue = featureFromMask(resultMask);
         return returnValue;
-    }
+    },
 
-    const ALL = createEmpty();
-    const ELEMENTARY: PredefinedFeature[] = [];
+    toString(this: Feature): string
+    {
+        let { name } = this;
+        if (name === undefined)
+            name = `{${this.canonicalNames.join(', ')}}`;
+        const str = `[Feature ${name}]`;
+        return str;
+    },
+};
 
+{
     const FEATURE_INFOS: { [key: string]: FeatureInfo | string; } =
     {
         ANY_DOCUMENT:
@@ -1395,138 +1482,85 @@ export let validMaskFromArrayOrStringOrFeature:
         },
     };
 
-    Feature =
-    function (this: unknown): Feature
+    const completeExclusions =
+    (name: string): void =>
     {
-        const mask = validMaskFromArguments(arguments);
-        const featureObj = this instanceof Feature ? this : _Object_create(featurePrototype);
-        initMask(featureObj, mask);
-        return featureObj;
-    } as typeof Feature;
+        const info = FEATURE_INFOS[name];
+        const { excludes } = info as { excludes?: string[]; };
+        if (excludes)
+        {
+            const featureObj = ALL[name];
+            const { mask } = featureObj;
+            excludes.forEach
+            (
+                (exclude: string): void =>
+                {
+                    const excludeMask = completeFeature(exclude);
+                    const incompatibleMask = maskUnion(mask, excludeMask);
+                    incompatibleMaskMap[incompatibleMask as any] = incompatibleMask;
+                },
+            );
+        }
+    };
+
+    const completeFeature =
+    (name: string): Mask =>
+    {
+        let mask: Mask;
+        let featureObj = ALL[name];
+        if (featureObj)
+            ({ mask } = featureObj);
+        else
+        {
+            const info = FEATURE_INFOS[name];
+            if (typeof info === 'string')
+            {
+                mask = completeFeature(info);
+                featureObj = ALL[info];
+            }
+            else
+            {
+                const { check } = info;
+                let wrappedCheck: (() => boolean) | undefined;
+                if (check)
+                {
+                    mask = maskWithBit(bitIndex++);
+                    if (check())
+                        autoMask = maskUnion(autoMask, mask);
+                    wrappedCheck = wrapCheck(check);
+                }
+                else
+                    mask = maskNew();
+                const includes: string[] = includesMap[name] = info.includes || [];
+                includes.forEach
+                (
+                    (include: string): void =>
+                    {
+                        const includeMask = completeFeature(include);
+                        mask = maskUnion(mask, includeMask);
+                    },
+                );
+                let description: string;
+                const { engine } = info;
+                if (engine == null)
+                    ({ description } = info as { readonly description: string; });
+                else
+                    description = createEngineFeatureDescription(engine);
+                const elementary = check || info.excludes;
+                featureObj =
+                createFeature
+                (name, description, mask, wrappedCheck, engine, info.attributes, elementary);
+                if (elementary)
+                    ELEMENTARY.push(featureObj);
+            }
+            registerFeature(name, featureObj);
+        }
+        return mask;
+    };
 
     const constructorSource = { ALL, ELEMENTARY, areCompatible, areEqual, commonOf };
 
     assignNoEnum(Feature, constructorSource);
-
-    const featurePrototype = Feature.prototype;
-
-    const protoSource =
-    {
-        get canonicalNames(this: Feature): string[]
-        {
-            const { mask } = this;
-            const featureNameSet: { [key: string]: null; } = createEmpty();
-            const allIncludes: string[] = [];
-            ELEMENTARY.forEach
-            (
-                (featureObj: PredefinedFeature): void =>
-                {
-                    const included = maskIncludes(mask, featureObj.mask);
-                    if (included)
-                    {
-                        const { name } = featureObj;
-                        featureNameSet[name] = null;
-                        const includes = includesMap[name];
-                        _Array_prototype_push.apply(allIncludes, includes);
-                    }
-                },
-            );
-            allIncludes.forEach
-            (
-                (name: string): void =>
-                {
-                    delete featureNameSet[name];
-                },
-            );
-            const names = _Object_keys(featureNameSet).sort();
-            return names;
-        },
-
-        description: undefined,
-
-        elementary: false,
-
-        get elementaryNames(this: Feature): string[]
-        {
-            const names: string[] = [];
-            const { mask } = this;
-            ELEMENTARY.forEach
-            (
-                (featureObj: PredefinedFeature): void =>
-                {
-                    const included = maskIncludes(mask, featureObj.mask);
-                    if (included)
-                        names.push(featureObj.name);
-                },
-            );
-            return names;
-        },
-
-        includes(this: Feature): boolean
-        {
-            const { mask } = this;
-            const included =
-            _Array_prototype_every.call
-            (
-                arguments,
-                (arg: FeatureElement | readonly FeatureElement[]): boolean =>
-                {
-                    const otherMask = validMaskFromArrayOrStringOrFeature(arg);
-                    const returnValue = maskIncludes(mask, otherMask);
-                    return returnValue;
-                },
-            );
-            return included;
-        },
-
-        inspect,
-
-        name: undefined,
-
-        restrict
-        (
-            this: Feature,
-            environment: 'forced-strict-mode' | 'web-worker',
-            engineFeatureObjs: Feature[],
-        ):
-        Feature
-        {
-            let resultMask = maskNew();
-            const thisMask = this.mask;
-            const attributeCache = createEmpty();
-            ELEMENTARY.forEach
-            (
-                (featureObj: PredefinedFeature): void =>
-                {
-                    const otherMask = featureObj.mask;
-                    const included = maskIncludes(thisMask, otherMask);
-                    if (included)
-                    {
-                        const attributeValue =
-                        featureObj.attributes[environment] as string | undefined;
-                        if
-                        (
-                            attributeValue === undefined ||
-                            engineFeatureObjs !== undefined &&
-                            !isExcludingAttribute(attributeCache, attributeValue, engineFeatureObjs)
-                        )
-                            resultMask = maskUnion(resultMask, otherMask);
-                    }
-                },
-            );
-            const returnValue = featureFromMask(resultMask);
-            return returnValue;
-        },
-
-        toString(this: Feature): string
-        {
-            let { name } = this;
-            if (name === undefined)
-                name = `{${this.canonicalNames.join(', ')}}`;
-            const str = `[Feature ${name}]`;
-            return str;
-        },
-    };
 
     assignNoEnum(featurePrototype, protoSource);
     {
@@ -1544,43 +1578,14 @@ export let validMaskFromArrayOrStringOrFeature:
         }
     }
 
-    featureFromMask =
-    (mask: Mask): Feature =>
-    {
-        const featureObj = _Object_create(featurePrototype);
-        initMask(featureObj, mask);
-        return featureObj;
-    };
-
-    isMaskCompatible =
-    (mask: Mask): boolean =>
-    incompatibleMaskList.every
-    ((incompatibleMask: Mask): boolean => !maskIncludes(mask, incompatibleMask));
-
-    validMaskFromArrayOrStringOrFeature =
-    (arg: FeatureElement | readonly FeatureElement[]): Mask =>
-    {
-        let mask;
-        if (_Array_isArray(arg))
-        {
-            mask = featureArrayLikeToMask(arg);
-            if (arg.length > 1)
-                validateMask(mask);
-        }
-        else
-            mask = maskFromStringOrFeature(arg as FeatureElement);
-        return mask;
-    };
-
     let autoMask = maskNew();
     let bitIndex = 0;
-    const includesMap: { [key: string]: string[]; } = createEmpty();
     const incompatibleMaskMap: { [key: string]: Mask; } = createEmpty();
 
     const featureNames = _Object_keys(FEATURE_INFOS);
     featureNames.forEach(completeFeature);
     featureNames.forEach(completeExclusions);
-    const incompatibleMaskList =
+    incompatibleMaskList =
     _Object_keys(incompatibleMaskMap).map((key: string): Mask => incompatibleMaskMap[key]);
     ELEMENTARY.sort
     (
@@ -1593,4 +1598,3 @@ export let validMaskFromArrayOrStringOrFeature:
     registerFeature('AUTO', autoFeatureObj);
     _Object_freeze(ALL);
 }
-)();

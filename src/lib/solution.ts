@@ -1,15 +1,16 @@
-import Level                        from './level';
-import { _Object_defineProperty }   from './obj-utils';
-
-function setHasOuterPlus(solution: Solution, hasOuterPlus: boolean): void
-{
-    _Object_defineProperty(solution, 'hasOuterPlus', { value: hasOuterPlus });
-}
+import Level                                    from './level';
+import { _Object_defineProperty, assignNoEnum } from './obj-utils';
 
 export default class Solution
 {
+    /**
+     * Indicates whether this solution contains a plus sign out of brackets not preceded by an
+     * exclamation mark or by another plus sign.
+     */
+    public readonly hasOuterPlus!:  boolean;
+    public readonly length!:        number;
+    public          level?:         Level;
     public readonly replacement:    string;
-    public level?:                  Level;
 
     public constructor(replacement: string, level?: Level, hasOuterPlus?: boolean)
     {
@@ -18,24 +19,21 @@ export default class Solution
         if (hasOuterPlus !== undefined)
             setHasOuterPlus(this, hasOuterPlus);
     }
+}
 
-    public get appendLength(): number
+const protoSource =
+{
+    get appendLength(this: Solution): number
     {
         const extraLength = this.hasOuterPlus ? 3 : 1;
         const appendLength = this.length + extraLength;
         return appendLength;
-    }
-
-    public set appendLength(appendLength: number)
+    },
+    set appendLength(this: Solution, appendLength: number)
     {
         _Object_defineProperty(this, 'appendLength', { enumerable: true, value: appendLength });
-    }
-
-    /**
-     * Determines whether this solution contains a plus sign out of brackets not preceded by an
-     * exclamation mark or by another plus sign.
-     */
-    public get hasOuterPlus(): boolean
+    },
+    get hasOuterPlus(this: Solution): boolean
     {
         let str = this.replacement;
         for (;;)
@@ -48,20 +46,24 @@ export default class Solution
         const hasOuterPlus = /(^|[^!+])\+/.test(str);
         setHasOuterPlus(this, hasOuterPlus);
         return hasOuterPlus;
-    }
-
-    public get length(): number
+    },
+    get length(this: Solution): number
     {
         return this.replacement.length;
-    }
-
-    public charAt(index: number): string
+    },
+    charAt(this: Solution, index: number): string
     {
         return this.replacement[index];
-    }
-
-    public toString(): string
+    },
+    toString(this: Solution): string
     {
         return this.replacement;
-    }
+    },
+};
+
+assignNoEnum(Solution.prototype, protoSource);
+
+function setHasOuterPlus(solution: Solution, hasOuterPlus: boolean): void
+{
+    _Object_defineProperty(solution, 'hasOuterPlus', { value: hasOuterPlus });
 }

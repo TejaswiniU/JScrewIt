@@ -1,3 +1,5 @@
+declare global { interface ArrayConstructor { isArray(arg: any): arg is any[] | readonly any[]; } }
+
 export const _Array                         = Array;
 export const _Array_isArray                 = _Array.isArray;
 export const _Array_prototype               = _Array.prototype;

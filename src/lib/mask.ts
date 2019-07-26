@@ -1,8 +1,8 @@
-type MaskTemplate = [number, number];
-
 type Mask = Readonly<MaskTemplate>;
 
 export default Mask;
+
+type MaskTemplate = [number, number];
 
 export function maskAreEqual(mask1: Mask, mask2: Mask): boolean
 {
@@ -15,8 +15,8 @@ export function maskIncludes(includingMask: Mask, includedMask: Mask): boolean
     let part0;
     let part1;
     const included =
-    ((part0 = includedMask['0']) & includingMask[0]) === part0 &&
-    ((part1 = includedMask['1']) & includingMask[1]) === part1;
+    ((part0 = includedMask[0 as number]) & includingMask[0]) === part0 &&
+    ((part1 = includedMask[1 as number]) & includingMask[1]) === part1;
     return included;
 }
 

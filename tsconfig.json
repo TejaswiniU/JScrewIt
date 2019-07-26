@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    "module": "es2015",
     "strict": true,
     "target": "es5"
   }
