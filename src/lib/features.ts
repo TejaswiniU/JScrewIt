@@ -1,6 +1,6 @@
-/* global Audio, Node, console, document, history, require, self, sidebar, statusbar */
+/* global Audio, Node, console, document, history, require, self, statusbar */
 
-import { maskAreEqual, maskIncludes, maskIntersection, maskNew, maskUnion, maskWithBit }
+import Mask, { maskAreEqual, maskIncludes, maskIntersection, maskNew, maskUnion, maskWithBit }
 from './mask';
 import
 {
@@ -20,36 +20,67 @@ import
 }
 from './obj-utils';
 
-export function featuresToMask(featureObjs)
+declare global
 {
-    var mask = maskNew();
+    interface Array<T> { flat(): unknown; }
+
+    const sidebar: unknown;
+    const uneval: unknown;
+}
+
+interface Feature
+{
+    readonly attributes:        { [key: string]: unknown; };
+    readonly mask:              Mask;
+    readonly name?:             string;
+    readonly canonicalNames:    string[];
+}
+
+type FeatureElement = Feature | string;
+
+export function featuresToMask(featureObjs: readonly Feature[]): Mask
+{
+    let mask = maskNew();
     featureObjs.forEach
     (
-        function (featureObj)
+        (featureObj: Feature): void =>
         {
             mask = maskUnion(mask, featureObj.mask);
-        }
+        },
     );
     return mask;
 }
 
-export var Feature;
+export let Feature: { readonly prototype: Feature; new (): Feature; (): Feature; };
 
-export var featureFromMask;
-export var isMaskCompatible;
-export var validMaskFromArrayOrStringOrFeature;
+export let featureFromMask: (mask: Mask) => Feature;
+export let isMaskCompatible: (mask: Mask) => boolean;
+export let validMaskFromArrayOrStringOrFeature:
+(arg: FeatureElement | readonly FeatureElement[]) => Mask;
 
-(function ()
+((): void =>
 {
-    function areCompatible()
+    interface PredefinedFeature extends Feature { name: string; }
+
+    type FeatureInfo =
+    ({ readonly description: string; } | { readonly engine: string; })
+    &
     {
-        var arg0;
-        var features =
-        arguments.length === 1 && _Array_isArray(arg0 = arguments[0]) ? arg0 : arguments;
-        var compatible;
+        readonly check?:        () => unknown;
+        readonly includes?:     string[];
+        readonly excludes?:     string[];
+        readonly attributes?:   { [key: string]: unknown; };
+    };
+
+    function areCompatible(): boolean
+    {
+        let arg0;
+        const features =
+        arguments.length === 1 && _Array_isArray(arg0 = (arguments as any)['0']) ? arg0 : arguments;
+        let compatible;
         if (features.length > 1)
         {
-            var mask = featureArrayLikeToMask(features);
+            const mask = featureArrayLikeToMask(features);
             compatible = isMaskCompatible(mask);
         }
         else
@@ -57,17 +88,17 @@ export var validMaskFromArrayOrStringOrFeature;
         return compatible;
     }
 
-    function areEqual()
+    function areEqual(): boolean
     {
-        var mask;
-        var equal =
+        let mask: Mask;
+        const equal =
         _Array_prototype_every.call
         (
             arguments,
-            function (arg, index)
+            (arg: FeatureElement | readonly FeatureElement[], index): boolean =>
             {
-                var returnValue;
-                var otherMask = validMaskFromArrayOrStringOrFeature(arg);
+                let returnValue;
+                const otherMask = validMaskFromArrayOrStringOrFeature(arg);
                 if (index)
                     returnValue = maskAreEqual(otherMask, mask);
                 else
@@ -76,81 +107,81 @@ export var validMaskFromArrayOrStringOrFeature;
                     returnValue = true;
                 }
                 return returnValue;
-            }
+            },
         );
         return equal;
     }
 
-    function checkSelfFeature()
+    function checkSelfFeature(this: (str: string) => unknown): unknown
     {
-        // self + '' throws an error inside a web worker in Safari 8 and 9.
-        var str;
+        // ('' + self) throws an error inside a web worker in Safari 8 and 9.
+        let str;
         try
         {
-            str = self + '';
+            str = `${self}`;
         }
-        catch (error)
+        catch
         {
             return false;
         }
-        var available = this(str);
+        const available = this(str);
         return available;
     }
 
-    function commonOf()
+    function commonOf(): Feature | null
     {
-        var returnValue;
+        let returnValue: Feature | null;
         if (arguments.length)
         {
-            var mask;
+            let mask: undefined | Mask;
             _Array_prototype_forEach.call
             (
                 arguments,
-                function (arg)
+                (arg: FeatureElement | readonly FeatureElement[]): void =>
                 {
-                    var otherMask = validMaskFromArrayOrStringOrFeature(arg);
+                    const otherMask = validMaskFromArrayOrStringOrFeature(arg);
                     if (mask != null)
                         mask = maskIntersection(mask, otherMask);
                     else
                         mask = otherMask;
-                }
+                },
             );
-            returnValue = featureFromMask(mask);
+            returnValue = featureFromMask(mask as Mask);
         }
         else
             returnValue = null;
         return returnValue;
     }
 
-    function completeExclusions(name)
+    function completeExclusions(name: string): void
     {
-        var info = FEATURE_INFOS[name];
-        var excludes = info.excludes;
+        const info: any = FEATURE_INFOS[name];
+        const { excludes } = info;
         if (excludes)
         {
-            var featureObj = ALL[name];
-            var mask = featureObj.mask;
+            const featureObj = ALL[name];
+            const { mask } = featureObj;
             excludes.forEach
             (
-                function (exclude)
+                (exclude: string): void =>
                 {
-                    var excludeMask = completeFeature(exclude);
-                    var incompatibleMask = maskUnion(mask, excludeMask);
-                    incompatibleMaskMap[incompatibleMask] = incompatibleMask;
-                }
+                    const excludeMask = completeFeature(exclude);
+                    const incompatibleMask = maskUnion(mask, excludeMask);
+                    incompatibleMaskMap[incompatibleMask as any] = incompatibleMask;
+                },
             );
         }
     }
 
-    function completeFeature(name)
+    function completeFeature(name: string): Mask
     {
-        var mask;
-        var featureObj = ALL[name];
+        let mask: Mask;
+        let featureObj = ALL[name];
         if (featureObj)
-            mask = featureObj.mask;
+            ({ mask } = featureObj);
         else
         {
-            var info = FEATURE_INFOS[name];
+            const info: any = FEATURE_INFOS[name];
             if (typeof info === 'string')
             {
                 mask = completeFeature(info);
@@ -158,7 +189,7 @@ export var validMaskFromArrayOrStringOrFeature;
             }
             else
             {
-                var check = info.check;
+                let { check } = info;
                 if (check)
                 {
                     mask = maskWithBit(bitIndex++);
@@ -168,22 +199,22 @@ export var validMaskFromArrayOrStringOrFeature;
                 }
                 else
                     mask = maskNew();
-                var includes = includesMap[name] = info.includes || [];
+                const includes: string[] = includesMap[name] = info.includes || [];
                 includes.forEach
                 (
-                    function (include)
+                    (include: string): void =>
                     {
-                        var includeMask = completeFeature(include);
+                        const includeMask = completeFeature(include);
                         mask = maskUnion(mask, includeMask);
-                    }
+                    },
                 );
-                var description;
-                var engine = info.engine;
+                let description;
+                const { engine } = info;
                 if (engine == null)
-                    description = info.description;
+                    ({ description } = info);
                 else
                     description = createEngineFeatureDescription(engine);
-                var elementary = check || info.excludes;
+                const elementary = check || info.excludes;
                 featureObj =
                 createFeature(name, description, mask, check, engine, info.attributes, elementary);
                 if (elementary)
@@ -194,16 +225,26 @@ export var validMaskFromArrayOrStringOrFeature;
         return mask;
     }
 
-    function createEngineFeatureDescription(engine)
+    function createEngineFeatureDescription(engine: string): string
     {
-        var description = 'Features available in ' + engine + '.';
+        const description = `Features available in ${engine}.`;
         return description;
     }
 
-    function createFeature(name, description, mask, check, engine, attributes, elementary)
+    function createFeature
+    (
+        name:           string,
+        description:    string,
+        mask:           Mask,
+        check?:         () => boolean,
+        engine?:        string,
+        attributes?:    object,
+        elementary?:    boolean,
+    ):
+    Feature
     {
         attributes = _Object_freeze(attributes || { });
-        var descriptors =
+        const descriptors: PropertyDescriptorMap =
         {
             attributes:     { value: attributes },
             check:          { value: check },
@@ -213,27 +254,27 @@ export var validMaskFromArrayOrStringOrFeature;
         };
         if (elementary)
             descriptors.elementary = { value: true };
-        var featureObj = _Object_create(featurePrototype, descriptors);
+        const featureObj = _Object_create(featurePrototype, descriptors);
         initMask(featureObj, mask);
         return featureObj;
     }
 
-    function featureArrayLikeToMask(arrayLike)
+    function featureArrayLikeToMask(arrayLike: ArrayLike<FeatureElement>): Mask
     {
-        var mask = maskNew();
+        let mask = maskNew();
         _Array_prototype_forEach.call
         (
             arrayLike,
-            function (feature)
+            (feature: FeatureElement): void =>
             {
-                var otherMask = maskFromStringOrFeature(feature);
+                const otherMask = maskFromStringOrFeature(feature);
                 mask = maskUnion(mask, otherMask);
-            }
+            },
         );
         return mask;
     }
 
-    function initMask(featureObj, mask)
+    function initMask(featureObj: Feature, mask: Mask): void
     {
         _Object_defineProperty(featureObj, 'mask', { value: _Object_freeze(mask) });
     }
@@ -249,10 +290,10 @@ export var validMaskFromArrayOrStringOrFeature;
      * {@link https://tiny.cc/j4wz9y|Custom inspection functions on Objects} for further
      * information.
      */
-    function inspect(depth, opts)
+    function inspect(this: Feature, depth: never, opts: any): unknown
     {
-        var returnValue;
-        var str = this.toString();
+        let returnValue;
+        const str = this.toString();
         if (opts !== undefined) // opts can be undefined in Node.js 0.10.0.
             returnValue = opts.stylize(str, 'jscrewit-feature');
         else
@@ -260,94 +301,87 @@ export var validMaskFromArrayOrStringOrFeature;
         return returnValue;
     }
 
-    function isExcludingAttribute(attributeCache, attributeName, featureObjs)
+    function isExcludingAttribute
+    (attributeCache: { [key: string]: boolean; }, attributeName: string, featureObjs: Feature[]):
+    boolean
     {
-        var returnValue = attributeCache[attributeName];
+        let returnValue = attributeCache[attributeName];
         if (returnValue === undefined)
         {
             attributeCache[attributeName] =
             returnValue =
             featureObjs.some
-            (
-                function (featureObj)
-                {
-                    return attributeName in featureObj.attributes;
-                }
-            );
+            ((featureObj: Feature): boolean => attributeName in featureObj.attributes);
         }
         return returnValue;
     }
 
-    function maskFromStringOrFeature(arg)
+    function maskFromStringOrFeature(arg: FeatureElement): Mask
     {
-        var mask;
+        let mask;
         if (arg instanceof Feature)
-            mask = arg.mask;
+            ({ mask } = arg);
         else
         {
-            var name = esToString(arg);
-            var featureObj = ALL[name];
+            const name = esToString(arg);
+            const featureObj = ALL[name];
             if (!featureObj)
-                throw new _Error('Unknown feature ' + _JSON_stringify(name));
-            mask = featureObj.mask;
+                throw new _Error(`Unknown feature ${_JSON_stringify(name)}`);
+            ({ mask } = featureObj);
         }
         return mask;
     }
 
-    function registerFeature(name, featureObj)
+    function registerFeature(name: string, featureObj: Feature): void
     {
-        var descriptor = { enumerable: true, value: featureObj };
+        const descriptor = { enumerable: true, value: featureObj };
         _Object_defineProperty(Feature, name, descriptor);
         ALL[name] = featureObj;
     }
 
-    function validateMask(mask)
+    function validateMask(mask: Mask): void
     {
         if (!isMaskCompatible(mask))
             throw new _Error('Incompatible features');
     }
 
-    function validMaskFromArguments(args)
+    function validMaskFromArguments
+    (args: ArrayLike<FeatureElement | readonly FeatureElement[]>): Mask
     {
-        var mask = maskNew();
-        var validationNeeded = false;
+        let mask = maskNew();
+        let validationNeeded = 0;
         _Array_prototype_forEach.call
         (
             args,
-            function (arg)
+            (arg: FeatureElement | readonly FeatureElement[]): void =>
             {
-                var otherMask;
+                let otherMask;
                 if (_Array_isArray(arg))
                 {
                     otherMask = featureArrayLikeToMask(arg);
-                    validationNeeded |= arg.length > 1;
+                    validationNeeded |= arg.length > 1 as any;
                 }
                 else
-                    otherMask = maskFromStringOrFeature(arg);
+                    otherMask = maskFromStringOrFeature(arg as FeatureElement);
                 mask = maskUnion(mask, otherMask);
-            }
+            },
         );
-        validationNeeded |= args.length > 1;
+        validationNeeded |= args.length > 1 as any;
         if (validationNeeded)
             validateMask(mask);
         return mask;
     }
 
-    function wrapCheck(check)
+    function wrapCheck(check: () => unknown): () => boolean
     {
-        var returnValue =
-        function ()
-        {
-            var available = !!check();
-            return available;
-        };
+        const returnValue = (): boolean => !!check();
         return returnValue;
     }
 
-    var ALL = createEmpty();
-    var ELEMENTARY = [];
+    const ALL = createEmpty();
+    const ELEMENTARY: PredefinedFeature[] = [];
 
-    var FEATURE_INFOS =
+    const FEATURE_INFOS: { [key: string]: FeatureInfo | string; } =
     {
         ANY_DOCUMENT:
         {
@@ -355,12 +389,8 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object document whose string representation starts with ' +
             '"[object " and ends with "Document]".',
             check:
-            function ()
-            {
-                var available =
-                typeof document === 'object' && /^\[object .*Document]$/.test(document + '');
-                return available;
-            },
+            (): unknown =>
+            typeof document === 'object' && /^\[object .*Document]$/.test(`${document}`),
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         ANY_WINDOW:
@@ -369,14 +399,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object self whose string representation starts with ' +
             '"[object " and ends with "Window]".',
             check:
-            checkSelfFeature.bind
-            (
-                function (str)
-                {
-                    var available = /^\[object .*Window]$/.test(str);
-                    return available;
-                }
-            ),
+            checkSelfFeature.bind((str: string): unknown => /^\[object .*Window]$/.test(str)),
             includes: ['SELF_OBJ'],
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
@@ -386,37 +409,28 @@ export var validMaskFromArrayOrStringOrFeature;
             'The property that the string representation of Array.prototype.entries() starts ' +
             'with "[object Array" and ends with "]" at index 21 or 22.',
             check:
-            function ()
-            {
-                var available =
-                Array.prototype.entries && /^\[object Array.{8,9}]$/.test([].entries());
-                return available;
-            },
+            (): unknown =>
+            Array.prototype.entries && /^\[object Array.{8,9}]$/.test([].entries() as any),
         },
         ARROW:
         {
             description: 'Support for arrow functions.',
             check:
-            function ()
+            (): unknown =>
             {
                 try
                 {
                     Function('()=>{}')();
                     return true;
                 }
-                catch (error)
+                catch
                 { }
             },
         },
         ATOB:
         {
             description: 'Existence of the global functions atob and btoa.',
-            check:
-            function ()
-            {
-                var available = typeof atob === 'function' && typeof btoa === 'function';
-                return available;
-            },
+            check: (): unknown => typeof atob === 'function' && typeof btoa === 'function',
             attributes: { 'web-worker': 'no-atob-in-web-worker' },
         },
         BARPROP:
@@ -424,13 +438,8 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'Existence of the global object statusbar having the string representation "[object ' +
             'BarProp]".',
-            check:
-            function ()
-            {
-                var available =
-                typeof statusbar === 'object' && statusbar + '' === '[object BarProp]';
-                return available;
-            },
+            check: (): unknown =>
+            typeof statusbar === 'object' && `${statusbar}` === '[object BarProp]',
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         CAPITAL_HTML:
@@ -440,19 +449,15 @@ export var validMaskFromArrayOrStringOrFeature;
             'String.prototype.big or String.prototype.link have both the tag name and attributes ' +
             'written in capital letters.',
             check:
-            function ()
-            {
-                var available =
-                ''.big()            === '<BIG></BIG>'               &&
-                ''.fontcolor('')    === '<FONT COLOR=""></FONT>'    &&
-                ''.fontsize('')     === '<FONT SIZE=""></FONT>'     &&
-                ''.link('')         === '<A HREF=""></A>'           &&
-                ''.small()          === '<SMALL></SMALL>'           &&
-                ''.strike()         === '<STRIKE></STRIKE>'         &&
-                ''.sub()            === '<SUB></SUB>'               &&
-                ''.sup()            === '<SUP></SUP>';
-                return available;
-            },
+            (): unknown =>
+            ''.big()            === '<BIG></BIG>'               &&
+            ''.fontcolor('')    === '<FONT COLOR=""></FONT>'    &&
+            ''.fontsize('')     === '<FONT SIZE=""></FONT>'     &&
+            ''.link('')         === '<A HREF=""></A>'           &&
+            ''.small()          === '<SMALL></SMALL>'           &&
+            ''.strike()         === '<STRIKE></STRIKE>'         &&
+            ''.sub()            === '<SUB></SUB>'               &&
+            ''.sup()            === '<SUP></SUP>',
         },
         CONSOLE:
         {
@@ -460,12 +465,8 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object console having the string representation "[object ' +
             'Console]".\n' +
             'This feature may become unavailable when certain browser extensions are active.',
-            check:
-            function ()
-            {
-                var available = typeof console === 'object' && console + '' === '[object Console]';
-                return available;
-            },
+            check: (): unknown =>
+            typeof console === 'object' && `${console}` === '[object Console]',
             attributes: { 'web-worker': 'no-console-in-web-worker' },
         },
         DOCUMENT:
@@ -473,13 +474,8 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'Existence of the global object document having the string representation "[object ' +
             'Document]".',
-            check:
-            function ()
-            {
-                var available =
-                typeof document === 'object' && document + '' === '[object Document]';
-                return available;
-            },
+            check: (): unknown =>
+            typeof document === 'object' && `${document}` === '[object Document]',
             includes: ['ANY_DOCUMENT'],
             excludes: ['HTMLDOCUMENT'],
             attributes: { 'web-worker': 'web-worker-restriction' },
@@ -489,15 +485,7 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'Existence of the global object self having the string representation "[object ' +
             'DOMWindow]".',
-            check:
-            checkSelfFeature.bind
-            (
-                function (str)
-                {
-                    var available = str === '[object DOMWindow]';
-                    return available;
-                }
-            ),
+            check: checkSelfFeature.bind((str: string): unknown => str === '[object DOMWindow]'),
             includes: ['ANY_WINDOW'],
             excludes: ['WINDOW'],
             attributes: { 'web-worker': 'web-worker-restriction' },
@@ -508,12 +496,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'The property that double quotation mark, less than and greater than characters in ' +
             'the argument of String.prototype.fontcolor are escaped into their respective HTML ' +
             'entities.',
-            check:
-            function ()
-            {
-                var available = ~''.fontcolor('"<>').indexOf('&quot;&lt;&gt;');
-                return available;
-            },
+            check: (): unknown => ~''.fontcolor('"<>').indexOf('&quot;&lt;&gt;'),
             includes: ['ESC_HTML_QUOT'],
             excludes: ['ESC_HTML_QUOT_ONLY'],
         },
@@ -522,24 +505,14 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'The property that double quotation marks in the argument of ' +
             'String.prototype.fontcolor are escaped as "&quot;".',
-            check:
-            function ()
-            {
-                var available = ~''.fontcolor('"').indexOf('&quot;');
-                return available;
-            },
+            check: (): unknown => ~''.fontcolor('"').indexOf('&quot;'),
         },
         ESC_HTML_QUOT_ONLY:
         {
             description:
             'The property that only double quotation marks and no other characters in the ' +
             'argument of String.prototype.fontcolor are escaped into HTML entities.',
-            check:
-            function ()
-            {
-                var available = ~''.fontcolor('"<>').indexOf('&quot;<>');
-                return available;
-            },
+            check: (): unknown => ~''.fontcolor('"<>').indexOf('&quot;<>'),
             includes: ['ESC_HTML_QUOT'],
             excludes: ['ESC_HTML_ALL'],
         },
@@ -549,24 +522,14 @@ export var validMaskFromArrayOrStringOrFeature;
             'Having regular expressions created with the RegExp constructor use escape sequences ' +
             'starting with a backslash to format line feed characters ("\\n") in their string ' +
             'representation.',
-            check:
-            function ()
-            {
-                var available = (RegExp('\n') + '')[1] === '\\';
-                return available;
-            },
+            check: (): unknown => `${RegExp('\n')}`[1] === '\\',
         },
         ESC_REGEXP_SLASH:
         {
             description:
             'Having regular expressions created with the RegExp constructor use escape sequences ' +
             'starting with a backslash to format slashes ("/") in their string representation.',
-            check:
-            function ()
-            {
-                var available = (RegExp('/') + '')[1] === '\\';
-                return available;
-            },
+            check: (): unknown => `${RegExp('/')}`[1] === '\\',
         },
         EXTERNAL:
         {
@@ -574,11 +537,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object sidebar having the string representation "[object ' +
             'External]".',
             check:
-            function ()
-            {
-                var available = typeof sidebar === 'object' && sidebar + '' === '[object External]';
-                return available;
-            },
+            (): unknown => typeof sidebar === 'object' && `${sidebar}` === '[object External]',
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         FF_SRC:
@@ -594,56 +553,31 @@ export var validMaskFromArrayOrStringOrFeature;
         FILL:
         {
             description: 'Existence of the native function Array.prototype.fill.',
-            check:
-            function ()
-            {
-                var available = Array.prototype.fill;
-                return available;
-            },
+            check: (): unknown => Array.prototype.fill,
         },
         FLAT:
         {
             description: 'Existence of the native function Array.prototype.flat.',
-            check:
-            function ()
-            {
-                var available = Array.prototype.flat;
-                return available;
-            },
+            check: (): unknown => Array.prototype.flat,
         },
         FROM_CODE_POINT:
         {
             description: 'Existence of the function String.fromCodePoint.',
-            check:
-            function ()
-            {
-                var available = String.fromCodePoint;
-                return available;
-            },
+            check: (): unknown => String.fromCodePoint,
         },
         FUNCTION_19_LF:
         {
             description:
             'A string representation of dynamically generated functions where the character at ' +
             'index 19 is a line feed ("\\n").',
-            check:
-            function ()
-            {
-                var available = (Function() + '')[19] === '\n';
-                return available;
-            },
+            check: (): unknown => `${Function()}`[19] === '\n',
         },
         FUNCTION_22_LF:
         {
             description:
             'A string representation of dynamically generated functions where the character at ' +
             'index 22 is a line feed ("\\n").',
-            check:
-            function ()
-            {
-                var available = (Function() + '')[22] === '\n';
-                return available;
-            },
+            check: (): unknown => `${Function()}`[22] === '\n',
         },
         GMT:
         {
@@ -653,12 +587,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'The string representation of dates is implementation dependent, but most engines ' +
             'use a similar format, making this feature available in all supported engines except ' +
             'Internet Explorer 9 and 10.',
-            check:
-            function ()
-            {
-                var available = /^.{25}GMT/.test(Date());
-                return available;
-            },
+            check: (): unknown => /^.{25}GMT/.test(Date()),
         },
         HISTORY:
         {
@@ -666,11 +595,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object history having the string representation "[object ' +
             'History]".',
             check:
-            function ()
-            {
-                var available = typeof history === 'object' && history + '' === '[object History]';
-                return available;
-            },
+            (): unknown => typeof history === 'object' && `${history}` === '[object History]',
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         HTMLAUDIOELEMENT:
@@ -679,12 +604,8 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object Audio whose string representation starts with ' +
             '"function HTMLAudioElement".',
             check:
-            function ()
-            {
-                var available =
-                typeof Audio !== 'undefined' && /^function HTMLAudioElement/.test(Audio);
-                return available;
-            },
+            (): unknown =>
+            typeof Audio !== 'undefined' && /^function HTMLAudioElement/.test(Audio as any),
             includes: ['NO_IE_SRC'],
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
@@ -694,12 +615,8 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object document having the string representation "[object ' +
             'HTMLDocument]".',
             check:
-            function ()
-            {
-                var available =
-                typeof document === 'object' && document + '' === '[object HTMLDocument]';
-                return available;
-            },
+            (): unknown =>
+            typeof document === 'object' && `${document}` === '[object HTMLDocument]',
             includes: ['ANY_DOCUMENT'],
             excludes: ['DOCUMENT'],
             attributes: { 'web-worker': 'web-worker-restriction' },
@@ -720,42 +637,23 @@ export var validMaskFromArrayOrStringOrFeature;
             'The ability to use unary increment operators with string characters, like in ( ' +
             '++"some string"[0] ): this will result in a TypeError in strict mode in ECMAScript ' +
             'compliant engines.',
-            check:
-            function ()
-            {
-                return true;
-            },
+            check: (): unknown => true,
             attributes: { 'forced-strict-mode': 'char-increment-restriction' },
         },
         INTL:
         {
             description: 'Existence of the global object Intl.',
-            check:
-            function ()
-            {
-                var available = typeof Intl === 'object';
-                return available;
-            },
+            check: (): unknown => typeof Intl === 'object',
         },
         LOCALE_INFINITY:
         {
             description: 'Language sensitive string representation of Infinity as "∞".',
-            check:
-            function ()
-            {
-                var available = Infinity.toLocaleString() === '∞';
-                return available;
-            },
+            check: (): unknown => Infinity.toLocaleString() === '∞',
         },
         NAME:
         {
             description: 'Existence of the name property for functions.',
-            check:
-            function ()
-            {
-                var available = 'name' in Function();
-                return available;
-            },
+            check: (): unknown => 'name' in Function(),
         },
         NODECONSTRUCTOR:
         {
@@ -763,12 +661,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'Existence of the global object Node having the string representation "[object ' +
             'NodeConstructor]".',
             check:
-            function ()
-            {
-                var available =
-                typeof Node !== 'undefined' && Node + '' === '[object NodeConstructor]';
-                return available;
-            },
+            (): unknown => typeof Node !== 'undefined' && `${Node}` === '[object NodeConstructor]',
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         NO_FF_SRC:
@@ -777,11 +670,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'A string representation of native functions typical for V8 and Edge or for Internet ' +
             'Explorer but not for Firefox and Safari.',
             check:
-            function ()
-            {
-                var available = /^(\n?)function Object\(\) \{\1 +\[native code]\s\}/.test(Object);
-                return available;
-            },
+            (): unknown => /^(\n?)function Object\(\) \{\1 +\[native code]\s\}/.test(Object as any),
             excludes: ['FF_SRC'],
         },
         NO_IE_SRC:
@@ -792,11 +681,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'A remarkable trait of this feature is the lack of line feed characters at the ' +
             'beginning and at the end of the string.',
             check:
-            function ()
-            {
-                var available = /^function Object\(\) \{(\n   )? \[native code]\s\}/.test(Object);
-                return available;
-            },
+            (): unknown => /^function Object\(\) \{(\n   )? \[native code]\s\}/.test(Object as any),
             excludes: ['IE_SRC'],
         },
         NO_OLD_SAFARI_ARRAY_ITERATOR:
@@ -805,12 +690,8 @@ export var validMaskFromArrayOrStringOrFeature;
             'The property that the string representation of Array.prototype.entries() evaluates ' +
             'to "[object Array Iterator]".',
             check:
-            function ()
-            {
-                var available =
-                Array.prototype.entries && [].entries() + '' === '[object Array Iterator]';
-                return available;
-            },
+            (): unknown =>
+            Array.prototype.entries && `${[].entries()}` === '[object Array Iterator]',
             includes: ['ARRAY_ITERATOR'],
         },
         NO_V8_SRC:
@@ -821,11 +702,7 @@ export var validMaskFromArrayOrStringOrFeature;
             'A most remarkable trait of this feature is the presence of a line feed followed by ' +
             'four whitespaces ("\\n    ") before the "[native code]" sequence.',
             check:
-            function ()
-            {
-                var available = /^\n?function Object\(\) \{\n    \[native code]\s\}/.test(Object);
-                return available;
-            },
+            (): unknown => /^\n?function Object\(\) \{\n    \[native code]\s\}/.test(Object as any),
             excludes: ['V8_SRC'],
         },
         SELF: 'ANY_WINDOW',
@@ -834,26 +711,13 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'Existence of the global object self whose string representation starts with ' +
             '"[object ".',
-            check:
-            checkSelfFeature.bind
-            (
-                function (str)
-                {
-                    var available = /^\[object /.test(str);
-                    return available;
-                }
-            ),
+            check: checkSelfFeature.bind((str: string): unknown => /^\[object /.test(str)),
             attributes: { 'web-worker': 'safari-bug-21820506' },
         },
         STATUS:
         {
             description: 'Existence of the global string status.',
-            check:
-            function ()
-            {
-                var available = typeof status === 'string';
-                return available;
-            },
+            check: (): unknown => typeof status === 'string',
             attributes: { 'web-worker': 'web-worker-restriction' },
         },
         UNDEFINED:
@@ -864,21 +728,17 @@ export var validMaskFromArrayOrStringOrFeature;
             'This behavior is specified by ECMAScript, and is enforced by all engines except ' +
             'Android Browser versions prior to 4.1.2, where this feature is not available.',
             check:
-            function ()
+            (): unknown =>
             {
-                var available = Object.prototype.toString.call() === '[object Undefined]';
+                const toString = Object.prototype.toString as { } as { call(): unknown; };
+                const available = toString.call() === '[object Undefined]';
                 return available;
             },
         },
         UNEVAL:
         {
             description: 'Existence of the global function uneval.',
-            check:
-            function ()
-            {
-                var available = typeof uneval !== 'undefined';
-                return available;
-            },
+            check: (): unknown => typeof uneval !== 'undefined',
         },
         V8_SRC:
         {
@@ -896,15 +756,7 @@ export var validMaskFromArrayOrStringOrFeature;
             description:
             'Existence of the global object self having the string representation "[object ' +
             'Window]".',
-            check:
-            checkSelfFeature.bind
-            (
-                function (str)
-                {
-                    var available = str === '[object Window]';
-                    return available;
-                }
-            ),
+            check: checkSelfFeature.bind((str: string): unknown => str === '[object Window]'),
             includes: ['ANY_WINDOW'],
             excludes: ['DOMWINDOW'],
             attributes: { 'web-worker': 'web-worker-restriction' },
@@ -1544,56 +1396,49 @@ export var validMaskFromArrayOrStringOrFeature;
     };
 
     Feature =
-    function ()
+    function (this: unknown): Feature
     {
-        var mask = validMaskFromArguments(arguments);
-        var featureObj = this instanceof Feature ? this : _Object_create(featurePrototype);
+        const mask = validMaskFromArguments(arguments);
+        const featureObj = this instanceof Feature ? this : _Object_create(featurePrototype);
         initMask(featureObj, mask);
         return featureObj;
-    };
+    } as typeof Feature;
 
-    var constructorSource =
-    {
-        ALL:            ALL,
-        ELEMENTARY:     ELEMENTARY,
-        areCompatible:  areCompatible,
-        areEqual:       areEqual,
-        commonOf:       commonOf,
-    };
+    const constructorSource = { ALL, ELEMENTARY, areCompatible, areEqual, commonOf };
 
     assignNoEnum(Feature, constructorSource);
 
-    var featurePrototype = Feature.prototype;
+    const featurePrototype = Feature.prototype;
 
-    var protoSource =
+    const protoSource =
     {
-        get canonicalNames()
+        get canonicalNames(this: Feature): string[]
         {
-            var mask = this.mask;
-            var featureNameSet = createEmpty();
-            var allIncludes = [];
+            const { mask } = this;
+            const featureNameSet: { [key: string]: null; } = createEmpty();
+            const allIncludes: string[] = [];
             ELEMENTARY.forEach
             (
-                function (featureObj)
+                (featureObj: PredefinedFeature): void =>
                 {
-                    var included = maskIncludes(mask, featureObj.mask);
+                    const included = maskIncludes(mask, featureObj.mask);
                     if (included)
                     {
-                        var name = featureObj.name;
+                        const { name } = featureObj;
                         featureNameSet[name] = null;
-                        var includes = includesMap[name];
+                        const includes = includesMap[name];
                         _Array_prototype_push.apply(allIncludes, includes);
                     }
-                }
+                },
             );
             allIncludes.forEach
             (
-                function (name)
+                (name: string): void =>
                 {
                     delete featureNameSet[name];
-                }
+                },
             );
-            var names = _Object_keys(featureNameSet).sort();
+            const names = _Object_keys(featureNameSet).sort();
             return names;
         },
 
@@ -1601,59 +1446,64 @@ export var validMaskFromArrayOrStringOrFeature;
 
         elementary: false,
 
-        get elementaryNames()
+        get elementaryNames(this: Feature): string[]
         {
-            var names = [];
-            var mask = this.mask;
+            const names: string[] = [];
+            const { mask } = this;
             ELEMENTARY.forEach
             (
-                function (featureObj)
+                (featureObj: PredefinedFeature): void =>
                 {
-                    var included = maskIncludes(mask, featureObj.mask);
+                    const included = maskIncludes(mask, featureObj.mask);
                     if (included)
                         names.push(featureObj.name);
-                }
+                },
             );
             return names;
         },
 
-        includes:
-        function ()
+        includes(this: Feature): boolean
         {
-            var mask = this.mask;
-            var included =
+            const { mask } = this;
+            const included =
             _Array_prototype_every.call
             (
                 arguments,
-                function (arg)
+                (arg: FeatureElement | readonly FeatureElement[]): boolean =>
                 {
-                    var otherMask = validMaskFromArrayOrStringOrFeature(arg);
-                    var returnValue = maskIncludes(mask, otherMask);
+                    const otherMask = validMaskFromArrayOrStringOrFeature(arg);
+                    const returnValue = maskIncludes(mask, otherMask);
                     return returnValue;
-                }
+                },
             );
             return included;
         },
 
-        inspect: inspect,
+        inspect,
 
         name: undefined,
 
-        restrict:
-        function (environment, engineFeatureObjs)
+        restrict
+        (
+            this: Feature,
+            environment: 'forced-strict-mode' | 'web-worker',
+            engineFeatureObjs: Feature[],
+        ):
+        Feature
         {
-            var resultMask = maskNew();
-            var thisMask = this.mask;
-            var attributeCache = createEmpty();
+            let resultMask = maskNew();
+            const thisMask = this.mask;
+            const attributeCache = createEmpty();
             ELEMENTARY.forEach
             (
-                function (featureObj)
+                (featureObj: PredefinedFeature): void =>
                 {
-                    var otherMask = featureObj.mask;
-                    var included = maskIncludes(thisMask, otherMask);
+                    const otherMask = featureObj.mask;
+                    const included = maskIncludes(thisMask, otherMask);
                     if (included)
                     {
-                        var attributeValue = featureObj.attributes[environment];
+                        const attributeValue =
+                        featureObj.attributes[environment] as string | undefined;
                         if
                         (
                             attributeValue === undefined ||
@@ -1662,63 +1512,55 @@ export var validMaskFromArrayOrStringOrFeature;
                         )
                             resultMask = maskUnion(resultMask, otherMask);
                     }
-                }
+                },
             );
-            var returnValue = featureFromMask(resultMask);
+            const returnValue = featureFromMask(resultMask);
             return returnValue;
         },
 
-        toString:
-        function ()
+        toString(this: Feature): string
         {
-            var name = this.name;
+            let { name } = this;
             if (name === undefined)
-                name = '{' + this.canonicalNames.join(', ') + '}';
-            var str = '[Feature ' + name + ']';
+                name = `{${this.canonicalNames.join(', ')}}`;
+            const str = `[Feature ${name}]`;
             return str;
         },
     };
 
     assignNoEnum(featurePrototype, protoSource);
-    try
     {
-        var inspectKey = require('util').inspect.custom;
-    }
-    catch (error)
-    { }
-    if (inspectKey)
-    {
-        _Object_defineProperty
-        (featurePrototype, inspectKey, { configurable: true, value: inspect, writable: true });
+        let inspectKey: undefined | symbol;
+        try
+        {
+            inspectKey = require('util').inspect.custom;
+        }
+        catch
+        { }
+        if (inspectKey)
+        {
+            _Object_defineProperty
+            (featurePrototype, inspectKey, { configurable: true, value: inspect, writable: true });
+        }
     }
 
     featureFromMask =
-    function (mask)
+    (mask: Mask): Feature =>
     {
-        var featureObj = _Object_create(featurePrototype);
+        const featureObj = _Object_create(featurePrototype);
         initMask(featureObj, mask);
         return featureObj;
     };
 
     isMaskCompatible =
-    function (mask)
-    {
-        var compatible =
-        incompatibleMaskList.every
-        (
-            function (incompatibleMask)
-            {
-                var returnValue = !maskIncludes(mask, incompatibleMask);
-                return returnValue;
-            }
-        );
-        return compatible;
-    };
+    (mask: Mask): boolean =>
+    incompatibleMaskList.every
+    ((incompatibleMask: Mask): boolean => !maskIncludes(mask, incompatibleMask));
 
     validMaskFromArrayOrStringOrFeature =
-    function (arg)
+    (arg: FeatureElement | readonly FeatureElement[]): Mask =>
     {
-        var mask;
+        let mask;
         if (_Array_isArray(arg))
         {
             mask = featureArrayLikeToMask(arg);
@@ -1726,37 +1568,27 @@ export var validMaskFromArrayOrStringOrFeature;
                 validateMask(mask);
         }
         else
-            mask = maskFromStringOrFeature(arg);
+            mask = maskFromStringOrFeature(arg as FeatureElement);
         return mask;
     };
 
-    var autoMask = maskNew();
-    var bitIndex = 0;
-    var includesMap = createEmpty();
-    var incompatibleMaskMap = createEmpty();
+    let autoMask = maskNew();
+    let bitIndex = 0;
+    const includesMap: { [key: string]: string[]; } = createEmpty();
+    const incompatibleMaskMap: { [key: string]: Mask; } = createEmpty();
 
-    var featureNames = _Object_keys(FEATURE_INFOS);
+    const featureNames = _Object_keys(FEATURE_INFOS);
     featureNames.forEach(completeFeature);
     featureNames.forEach(completeExclusions);
-    var incompatibleMaskList =
-    _Object_keys(incompatibleMaskMap).map
-    (
-        function (key)
-        {
-            var mask = incompatibleMaskMap[key];
-            return mask;
-        }
-    );
+    const incompatibleMaskList =
+    _Object_keys(incompatibleMaskMap).map((key: string): Mask => incompatibleMaskMap[key]);
     ELEMENTARY.sort
     (
-        function (feature1, feature2)
-        {
-            var returnValue = feature1.name < feature2.name ? -1 : 1;
-            return returnValue;
-        }
+        (feature1: PredefinedFeature, feature2: PredefinedFeature): -1 | 1 =>
+        feature1.name < feature2.name ? -1 : 1,
     );
     _Object_freeze(ELEMENTARY);
-    var autoFeatureObj =
+    const autoFeatureObj =
     createFeature('AUTO', 'All features available in the current engine.', autoMask);
     registerFeature('AUTO', autoFeatureObj);
     _Object_freeze(ALL);

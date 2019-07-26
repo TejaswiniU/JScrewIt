@@ -15,8 +15,8 @@ export function maskIncludes(includingMask: Mask, includedMask: Mask): boolean
     let part0;
     let part1;
     const included =
-    (([part0] = includedMask, part0) & includingMask[0]) === part0 &&
-    (([, part1] = includedMask, part1) & includingMask[1]) === part1;
+    ((part0 = includedMask['0']) & includingMask[0]) === part0 &&
+    ((part1 = includedMask['1']) & includingMask[1]) === part1;
     return included;
 }
 

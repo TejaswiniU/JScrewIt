@@ -29,7 +29,7 @@ export const _Object_getOwnPropertyDescriptor =
 _Object.getOwnPropertyDescriptor as <T extends { }>(o: T, p: keyof T) => PropertyDescriptor;
 
 export const _Object_keys =
-_Object.keys as <T extends { }>(obj: T) => (keyof T)[];
+_Object.keys as <T extends { }>(obj: T) => (string & keyof T)[];
 
 export const _RegExp                        = RegExp;
 
@@ -58,7 +58,8 @@ export function assignNoEnum<T extends { }, U extends { }>(target: T, source: U)
     return target;
 }
 
-export const createEmpty = _Object_create.bind(null, null, undefined as unknown as { });
+export const createEmpty: () => { [K in number | string | symbol]: any } =
+_Object_create.bind(null, null, undefined as unknown as { });
 
 export function esToString(arg: unknown): string
 {
@@ -68,9 +69,9 @@ export function esToString(arg: unknown): string
     return str;
 }
 
-export function noProto<T extends { }>(obj: T): { __proto__: null; }
+export function noProto<T extends { }>(obj: T): { [K in keyof T]: T[K] }
 {
-    const result = createEmpty();
+    const result = createEmpty() as { [K in keyof T]: T[K] };
     _Object_keys(obj).forEach
     (
         (name: keyof T): void =>
