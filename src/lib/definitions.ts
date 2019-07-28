@@ -4,30 +4,81 @@
 // Compared to generic purpose encoding, definition encoding differs mainly in that every identifier
 // used must be defined itself, too, in a constant definition.
 
-import { define, defineList, defineWithArrayLike }  from './definers';
-import { Feature }                                  from './features';
-import Level                                        from './level';
-import { _Object_defineProperty, noProto }          from './obj-utils';
-import Solution                                     from './solution';
+import { DefinitionEntry, DefinitionEntryList, define, defineList, defineWithArrayLike }
+from './definers';
+import { Feature }                          from './features';
+import Level                                from './level';
+import { _Object_defineProperty, noProto }  from './obj-utils';
+import Solution                             from './solution';
 
-function defineSimple(simple, expr, level)
+interface Encoder
 {
-    function get()
+    createCharDefaultSolution
+    (
+        charCode:       number,
+        atobOpt:        boolean,
+        charCodeOpt:    boolean,
+        escSeqOpt:      boolean,
+        unescapeOpt:    boolean,
+    ):
+    Solution;
+
+    findDefinition<T>(entries: DefinitionEntryList<T>): T;
+
+    replaceString(str: string): string;
+
+    resolveExprAt
+    (
+        expr:               string,
+        index:              number,
+        entries:            FunctionIndexDefinitionEntryList,
+        FB_PADDING_INFOS:   any,
+    ):
+    Solution;
+}
+
+type FunctionIndexDefinitionEntryList =
+DefinitionEntryList<number | { readonly block: string; readonly indexer: string; }>;
+
+type FunctionPaddingDefinitionEntryList =
+DefinitionEntryList<
+null | { readonly blocks: readonly (string | undefined)[]; readonly shift: number; }
+>;
+
+interface OptimizeOptions
+{
+    readonly complexOpt?:   boolean;
+    readonly toStringOpt?:  boolean;
+}
+
+interface SolutionDefinition
+{
+    readonly expr:      string;
+    readonly level?:    Level;
+    readonly optimize?: OptimizeOptions | boolean;
+}
+
+type SolutionProvider = (this: Encoder) => Solution;
+
+function defineSimple(simple: string, expr: string, level: Level): void
+{
+    function get(): Solution
     {
-        var definition = { expr: expr, level: level };
-        var solution = SIMPLE.resolveSimple(simple, definition);
+        const definition = { expr, level };
+        const solution = SIMPLE.resolveSimple(simple, definition);
         _Object_defineProperty(SIMPLE, simple, { value: solution });
         return solution;
     }
 
-    _Object_defineProperty(SIMPLE, simple, { configurable: true, enumerable: true, get: get });
+    _Object_defineProperty(SIMPLE, simple, { configurable: true, enumerable: true, get });
 }
 
-export var AMENDINGS = ['true', 'undefined', 'NaN'];
+export const AMENDINGS = ['true', 'undefined', 'NaN'];
 
-export var JSFUCK_INFINITY = '1e1000';
+export const JSFUCK_INFINITY = '1e1000';
 
-export var SIMPLE = { };
+export const SIMPLE =
+{ } as unknown as { resolveSimple: (simple: string, definition: SolutionDefinition) => Solution; };
 
 defineSimple('false',       '![]',              Level.NUMERIC);
 defineSimple('true',        '!![]',             Level.NUMERIC);
@@ -35,71 +86,85 @@ defineSimple('undefined',   '[][[]]',           Level.UNDEFINED);
 defineSimple('NaN',         '+[false]',         Level.NUMERIC);
 defineSimple('Infinity',    JSFUCK_INFINITY,    Level.NUMERIC);
 
-export var FROM_CHAR_CODE;
-export var FROM_CHAR_CODE_CALLBACK_FORMATTER;
-export var MAPPER_FORMATTER;
-export var OPTIMAL_B;
-export var OPTIMAL_RETURN_STRING;
+export let FROM_CHAR_CODE:          DefinitionEntryList<string>;
+export let FROM_CHAR_CODE_CALLBACK_FORMATTER:
+DefinitionEntryList<(fromCharCode: string, arg: string) => string>;
+export let MAPPER_FORMATTER:        DefinitionEntryList<(arg: string) => string>;
+export let OPTIMAL_B:               DefinitionEntryList<string>;
+export let OPTIMAL_RETURN_STRING:   DefinitionEntryList<string>;
+export let BASE64_ALPHABET_HI_2:    string[];
+export let BASE64_ALPHABET_HI_4:    (string | DefinitionEntryList<string>)[];
+export let BASE64_ALPHABET_HI_6:    string[];
+export let BASE64_ALPHABET_LO_2:    string[];
+export let BASE64_ALPHABET_LO_4:    (string | DefinitionEntryList<string>)[];
+export let BASE64_ALPHABET_LO_6:    string;
 
-export var BASE64_ALPHABET_HI_2;
-export var BASE64_ALPHABET_HI_4;
-export var BASE64_ALPHABET_HI_6;
-export var BASE64_ALPHABET_LO_2;
-export var BASE64_ALPHABET_LO_4;
-export var BASE64_ALPHABET_LO_6;
-
-export var CHARACTERS;
-export var COMPLEX;
-export var CONSTANTS;
-
-export var createBridgeSolution;
-
-(function ()
+export let CHARACTERS:
 {
-    var ANY_DOCUMENT                    = Feature.ANY_DOCUMENT;
-    var ANY_WINDOW                      = Feature.ANY_WINDOW;
-    var ARRAY_ITERATOR                  = Feature.ARRAY_ITERATOR;
-    var ARROW                           = Feature.ARROW;
-    var ATOB                            = Feature.ATOB;
-    var BARPROP                         = Feature.BARPROP;
-    var CAPITAL_HTML                    = Feature.CAPITAL_HTML;
-    var CONSOLE                         = Feature.CONSOLE;
-    var DOCUMENT                        = Feature.DOCUMENT;
-    var DOMWINDOW                       = Feature.DOMWINDOW;
-    var ESC_HTML_ALL                    = Feature.ESC_HTML_ALL;
-    var ESC_HTML_QUOT                   = Feature.ESC_HTML_QUOT;
-    var ESC_HTML_QUOT_ONLY              = Feature.ESC_HTML_QUOT_ONLY;
-    var ESC_REGEXP_LF                   = Feature.ESC_REGEXP_LF;
-    var ESC_REGEXP_SLASH                = Feature.ESC_REGEXP_SLASH;
-    var EXTERNAL                        = Feature.EXTERNAL;
-    var FF_SRC                          = Feature.FF_SRC;
-    var FILL                            = Feature.FILL;
-    var FLAT                            = Feature.FLAT;
-    var FROM_CODE_POINT                 = Feature.FROM_CODE_POINT;
-    var FUNCTION_19_LF                  = Feature.FUNCTION_19_LF;
-    var FUNCTION_22_LF                  = Feature.FUNCTION_22_LF;
-    var GMT                             = Feature.GMT;
-    var HISTORY                         = Feature.HISTORY;
-    var HTMLAUDIOELEMENT                = Feature.HTMLAUDIOELEMENT;
-    var HTMLDOCUMENT                    = Feature.HTMLDOCUMENT;
-    var IE_SRC                          = Feature.IE_SRC;
-    var INCR_CHAR                       = Feature.INCR_CHAR;
-    var INTL                            = Feature.INTL;
-    var LOCALE_INFINITY                 = Feature.LOCALE_INFINITY;
-    var NAME                            = Feature.NAME;
-    var NODECONSTRUCTOR                 = Feature.NODECONSTRUCTOR;
-    var NO_FF_SRC                       = Feature.NO_FF_SRC;
-    var NO_IE_SRC                       = Feature.NO_IE_SRC;
-    var NO_OLD_SAFARI_ARRAY_ITERATOR    = Feature.NO_OLD_SAFARI_ARRAY_ITERATOR;
-    var NO_V8_SRC                       = Feature.NO_V8_SRC;
-    var SELF_OBJ                        = Feature.SELF_OBJ;
-    var STATUS                          = Feature.STATUS;
-    var UNDEFINED                       = Feature.UNDEFINED;
-    var UNEVAL                          = Feature.UNEVAL;
-    var V8_SRC                          = Feature.V8_SRC;
-    var WINDOW                          = Feature.WINDOW;
+    [K in string]?:
+    | string
+    | SolutionDefinition
+    | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>
+    ;
+};
 
-    var FB_NO_FF_PADDINGS =
+export let COMPLEX: { [K in string]?: DefinitionEntry<string | SolutionDefinition>; };
+
+export let CONSTANTS:
+{ [K in string]?: string | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>; };
+
+export let createBridgeSolution: (bridge: string) => Solution;
+
+((): void =>
+{
+    const
+    {
+        ANY_DOCUMENT,
+        ANY_WINDOW,
+        ARRAY_ITERATOR,
+        ARROW,
+        ATOB,
+        BARPROP,
+        CAPITAL_HTML,
+        CONSOLE,
+        DOCUMENT,
+        DOMWINDOW,
+        ESC_HTML_ALL,
+        ESC_HTML_QUOT,
+        ESC_HTML_QUOT_ONLY,
+        ESC_REGEXP_LF,
+        ESC_REGEXP_SLASH,
+        EXTERNAL,
+        FF_SRC,
+        FILL,
+        FLAT,
+        FROM_CODE_POINT,
+        FUNCTION_19_LF,
+        FUNCTION_22_LF,
+        GMT,
+        HISTORY,
+        HTMLAUDIOELEMENT,
+        HTMLDOCUMENT,
+        IE_SRC,
+        INCR_CHAR,
+        INTL,
+        LOCALE_INFINITY,
+        NAME,
+        NODECONSTRUCTOR,
+        NO_FF_SRC,
+        NO_IE_SRC,
+        NO_OLD_SAFARI_ARRAY_ITERATOR,
+        NO_V8_SRC,
+        SELF_OBJ,
+        STATUS,
+        UNDEFINED,
+        UNEVAL,
+        V8_SRC,
+        WINDOW,
+    } =
+    Feature;
+
+    const FB_NO_FF_PADDINGS =
     [
         ,
         ,
@@ -116,7 +181,7 @@ export var createBridgeSolution;
         '[RP_3_NO] + FBP_9_U',
     ];
 
-    var FB_NO_IE_PADDINGS =
+    const FB_NO_IE_PADDINGS =
     [
         ,
         ,
@@ -133,7 +198,7 @@ export var createBridgeSolution;
         '[RP_3_NO] + FBEP_9_U',
     ];
 
-    var FB_PADDINGS =
+    const FB_PADDINGS =
     [
         ,
         ,
@@ -150,7 +215,7 @@ export var createBridgeSolution;
         'RP_5_N + [FBP_7_NO]',
     ];
 
-    var FH_PADDINGS =
+    const FH_PADDINGS =
     [
         ,
         ,
@@ -164,7 +229,7 @@ export var createBridgeSolution;
         'FHP_5_N + [RP_4_N]',
     ];
 
-    var R_PADDINGS =
+    const R_PADDINGS =
     [
         'RP_0_S',
         'RP_1_NO',
@@ -175,14 +240,14 @@ export var createBridgeSolution;
         'RP_6_SO',
     ];
 
-    var FB_EXPR_INFOS =
+    const FB_EXPR_INFOS =
     [
         define({ expr: 'FILTER', shift: 6 }),
         define({ expr: 'FILL', shift: 4 }, FILL),
         define({ expr: 'FLAT', shift: 4 }, FLAT),
     ];
 
-    var FB_PADDING_INFOS =
+    const FB_PADDING_INFOS: FunctionPaddingDefinitionEntryList =
     [
         define({ blocks: FB_PADDINGS, shift: 0 }),
         define({ blocks: FB_NO_FF_PADDINGS, shift: 0 }, NO_FF_SRC),
@@ -193,28 +258,28 @@ export var createBridgeSolution;
         define({ blocks: R_PADDINGS, shift: 4 }, FF_SRC),
     ];
 
-    var FH_PADDING_INFOS =
+    const FH_PADDING_INFOS: FunctionPaddingDefinitionEntryList =
     [
         define({ blocks: FH_PADDINGS, shift: 0 }),
         define({ blocks: R_PADDINGS, shift: 0 }, NO_IE_SRC),
         define({ blocks: R_PADDINGS, shift: 1 }, IE_SRC),
     ];
 
-    function commaDefinition()
+    function commaDefinition(this: Encoder): Solution
     {
-        var bridge = '[' + this.replaceString('concat') + ']';
-        var solution = createBridgeSolution(bridge);
+        const bridge = `[${this.replaceString('concat')}]`;
+        const solution = createBridgeSolution(bridge);
         return solution;
     }
 
-    function createCharAtDefinitionFB(offset)
+    function createCharAtDefinitionFB(offset: number): SolutionProvider
     {
-        function definitionFB()
+        function definitionFB(this: Encoder): Solution
         {
-            var functionDefinition = this.findDefinition(FB_EXPR_INFOS);
-            var expr = functionDefinition.expr;
-            var index = offset + functionDefinition.shift;
-            var paddingEntries;
+            const functionDefinition = this.findDefinition(FB_EXPR_INFOS);
+            const { expr } = functionDefinition;
+            const index = offset + functionDefinition.shift;
+            let paddingEntries!: FunctionIndexDefinitionEntryList;
             switch (index)
             {
             case 18:
@@ -233,7 +298,7 @@ export var createBridgeSolution;
                 [
                     define(10),
                     define
-                    ({ block: 'RP_6_SO', indexer: 1 + index / 10 + ' + FH_SHIFT_1' }, NO_V8_SRC),
+                    ({ block: 'RP_6_SO', indexer: `${1 + index / 10} + FH_SHIFT_1` }, NO_V8_SRC),
                     define(0, V8_SRC),
                     define(5, IE_SRC),
                     define(6, FF_SRC),
@@ -287,29 +352,44 @@ export var createBridgeSolution;
                 ];
                 break;
             }
-            var solution = this.resolveExprAt(expr, index, paddingEntries, FB_PADDING_INFOS);
+            const solution = this.resolveExprAt(expr, index, paddingEntries, FB_PADDING_INFOS);
             return solution;
         }
 
         return definitionFB;
     }
 
-    function createCharAtDefinitionFH(expr, index, entries, paddingInfos)
+    function createCharAtDefinitionFH
+    (
+        expr:           string,
+        index:          number,
+        entries:        FunctionIndexDefinitionEntryList,
+        paddingInfos:   FunctionPaddingDefinitionEntryList,
+    ):
+    SolutionProvider
     {
-        function definitionFH()
+        function definitionFH(this: Encoder): Solution
         {
-            var solution = this.resolveExprAt(expr, index, entries, paddingInfos);
+            const solution = this.resolveExprAt(expr, index, entries, paddingInfos);
             return solution;
         }
 
         return definitionFH;
     }
 
-    function createCharDefaultDefinition(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt)
+    function createCharDefaultDefinition
+    (
+        charCode: number,
+        atobOpt: boolean,
+        charCodeOpt: boolean,
+        escSeqOpt: boolean,
+        unescapeOpt: boolean,
+    ):
+    SolutionProvider
     {
-        function charDefaultDefinition()
+        function charDefaultDefinition(this: Encoder): Solution
         {
-            var solution =
+            const solution =
             this.createCharDefaultSolution(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt);
             return solution;
         }
@@ -317,35 +397,37 @@ export var createBridgeSolution;
         return charDefaultDefinition;
     }
 
-    function defineCharDefault(char, opts)
+    function defineCharDefault
+    (char: string, opts?: { [key: string]: boolean; }): DefinitionEntry<SolutionProvider>
     {
-        function checkOpt(optName, defaultOpt)
+        function checkOpt(optName: string, defaultOpt: boolean): boolean
         {
-            var opt = opts && optName in opts ? opts[optName] : defaultOpt;
+            const opt = opts && optName in opts ? opts[optName] : defaultOpt;
             return opt;
         }
 
-        var charCode    = char.charCodeAt();
-        var atobOpt     = checkOpt('atob', charCode < 0x100);
-        var charCodeOpt = checkOpt('charCode', true);
-        var escSeqOpt   = checkOpt('escSeq', true);
-        var unescapeOpt = checkOpt('unescape', true);
-        var definition =
+        const charCode = char.charCodeAt();
+        const atobOpt       = checkOpt('atob',      charCode < 0x100);
+        const charCodeOpt   = checkOpt('charCode',  true);
+        const escSeqOpt     = checkOpt('escSeq',    true);
+        const unescapeOpt   = checkOpt('unescape',  true);
+        const definition =
         createCharDefaultDefinition(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt);
-        var entry = defineWithArrayLike(definition, arguments, 2);
+        const entry = defineWithArrayLike(definition, arguments, 2);
         return entry;
     }
 
-    function defineFBCharAt(offset)
+    function defineFBCharAt(offset: number): DefinitionEntry<SolutionProvider>
     {
-        var definition = createCharAtDefinitionFB(offset);
-        var entry = define(definition);
+        const definition = createCharAtDefinitionFB(offset);
+        const entry = define(definition);
         return entry;
     }
 
-    function defineFHCharAt(expr, index)
+    const defineFHCharAt =
+    function (expr: string, index: number): DefinitionEntry<SolutionProvider>
     {
-        var entries;
+        let entries!: FunctionIndexDefinitionEntryList;
         switch (index)
         {
         case 3:
@@ -378,7 +460,7 @@ export var createBridgeSolution;
         case 19:
             entries =
             [
-                define({ block: 'RP_1_NO', indexer: (index + 1) / 10 + ' + FH_SHIFT_1' }),
+                define({ block: 'RP_1_NO', indexer: `${(index + 1) / 10} + FH_SHIFT_1` }),
                 define(1, NO_IE_SRC),
                 define(0, IE_SRC),
             ];
@@ -420,12 +502,12 @@ export var createBridgeSolution;
             ];
             break;
         }
-        var definition = createCharAtDefinitionFH(expr, index, entries, FH_PADDING_INFOS);
-        var entry = defineWithArrayLike(definition, arguments, 2);
+        const definition = createCharAtDefinitionFH(expr, index, entries, FH_PADDING_INFOS);
+        const entry = defineWithArrayLike(definition, arguments, 2);
         return entry;
-    }
+    } as (expr: string, index: number, ...features: Feature[]) => DefinitionEntry<SolutionProvider>;
 
-    function replaceDigit(digit)
+    function replaceDigit(digit: number): string
     {
         switch (digit)
         {
@@ -434,11 +516,13 @@ export var createBridgeSolution;
         case 1:
             return '+!![]';
         default:
-            var replacement = '!![]';
+        {
+            let replacement = '!![]';
             do
                 replacement += '+!![]';
             while (--digit > 1);
             return replacement;
+        }
         }
     }
 
@@ -487,7 +571,7 @@ export var createBridgeSolution;
                 EXTERNAL,
                 FILL,
                 FUNCTION_19_LF,
-                NO_FF_SRC
+                NO_FF_SRC,
             ),
             define
             (
@@ -498,7 +582,7 @@ export var createBridgeSolution;
                 EXTERNAL,
                 FLAT,
                 FUNCTION_19_LF,
-                NO_FF_SRC
+                NO_FF_SRC,
             ),
             define
             (
@@ -509,7 +593,7 @@ export var createBridgeSolution;
                 EXTERNAL,
                 FLAT,
                 FUNCTION_22_LF,
-                INCR_CHAR
+                INCR_CHAR,
             ),
             define
             (
@@ -521,7 +605,7 @@ export var createBridgeSolution;
                 FLAT,
                 FUNCTION_22_LF,
                 INCR_CHAR,
-                NO_FF_SRC
+                NO_FF_SRC,
             ),
             define
             ('X', ANY_DOCUMENT, ARRAY_ITERATOR, ESC_REGEXP_LF, FUNCTION_22_LF, HTMLAUDIOELEMENT),
@@ -533,7 +617,7 @@ export var createBridgeSolution;
                 ESC_REGEXP_LF,
                 FUNCTION_22_LF,
                 HTMLAUDIOELEMENT,
-                V8_SRC
+                V8_SRC,
             ),
             define
             ('X', ANY_DOCUMENT, ARRAY_ITERATOR, ESC_REGEXP_LF, FUNCTION_19_LF, HTMLAUDIOELEMENT),
@@ -545,7 +629,7 @@ export var createBridgeSolution;
                 ESC_REGEXP_LF,
                 FUNCTION_19_LF,
                 HTMLAUDIOELEMENT,
-                V8_SRC
+                V8_SRC,
             ),
             define('U', ANY_DOCUMENT, BARPROP, CONSOLE, EXTERNAL, FF_SRC, FILL, FROM_CODE_POINT),
             define('U', ANY_DOCUMENT, BARPROP, CONSOLE, EXTERNAL, FILL, FROM_CODE_POINT, IE_SRC),
@@ -559,7 +643,7 @@ export var createBridgeSolution;
                 EXTERNAL,
                 FILL,
                 FUNCTION_19_LF,
-                V8_SRC
+                V8_SRC,
             ),
             define
             (
@@ -570,7 +654,7 @@ export var createBridgeSolution;
                 EXTERNAL,
                 FLAT,
                 FUNCTION_19_LF,
-                NO_IE_SRC
+                NO_IE_SRC,
             ),
             define('U', ANY_DOCUMENT, UNDEFINED),
             define('U', ESC_REGEXP_LF, UNDEFINED),
@@ -958,7 +1042,7 @@ export var createBridgeSolution;
                     '(Function("try{undefined.false}catch(undefined){return undefined}")() + ' +
                     '[])[0]',
                     optimize: true,
-                }
+                },
             ),
             define('btoa(NaN)[0]', ATOB),
             define('"".fontcolor([])[20]', CAPITAL_HTML),
@@ -1215,7 +1299,7 @@ export var createBridgeSolution;
             define
             (
                 { expr: 'Infinity.toLocaleString()', optimize: { complexOpt: true } },
-                LOCALE_INFINITY
+                LOCALE_INFINITY,
             ),
             defineCharDefault('∞'),
         ],
@@ -1292,7 +1376,7 @@ export var createBridgeSolution;
             define
             (
                 { expr: 'Function("return document")()', optimize: { toStringOpt: true } },
-                ANY_DOCUMENT
+                ANY_DOCUMENT,
             ),
         ],
         escape:
@@ -1503,11 +1587,11 @@ export var createBridgeSolution;
     });
 
     createBridgeSolution =
-    function (bridge)
+    function (bridge: string): Solution
     {
-        var replacement = '[[]]' + bridge + '([[]])';
-        var solution = new Solution(replacement, Level.OBJECT, false);
-        var appendLength = bridge.length - 1;
+        const replacement = `[[]]${bridge}([[]])`;
+        const solution = new Solution(replacement, Level.OBJECT, false);
+        const appendLength = bridge.length - 1;
         solution.appendLength = appendLength;
         solution.bridge = bridge;
         return solution;
@@ -1537,7 +1621,7 @@ export var createBridgeSolution;
             define(0, ARRAY_ITERATOR, ATOB, CAPITAL_HTML, FROM_CODE_POINT),
             define(0, CONSOLE, FROM_CODE_POINT, NO_V8_SRC, UNEVAL),
             define(0, FROM_CODE_POINT, NODECONSTRUCTOR, NO_V8_SRC, UNEVAL),
-        ]
+        ],
     );
 
     FROM_CHAR_CODE_CALLBACK_FORMATTER =
@@ -1546,61 +1630,38 @@ export var createBridgeSolution;
         [
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr =
-                    'function(undefined){return String.' + fromCharCode + '(' + arg + ')}';
-                    return expr;
-                }
+                (fromCharCode: string, arg: string): string =>
+                `function(undefined){return String.${fromCharCode}(${arg})}`,
             ),
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr =
-                    'function(undefined){return(isNaN+false).constructor.' + fromCharCode + '(' +
-                    arg + ')}';
-                    return expr;
-                }
+                (fromCharCode: string, arg: string): string =>
+                `function(undefined){return(isNaN+false).constructor.${fromCharCode}(${arg
+                })}`,
             ),
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr = 'undefined=>String.' + fromCharCode + '(' + arg + ')';
-                    return expr;
-                },
-                ARROW
+                (fromCharCode: string, arg: string): string =>
+                `undefined=>String.${fromCharCode}(${arg})`,
+                ARROW,
             ),
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr =
-                    'undefined=>(isNaN+false).constructor.' + fromCharCode + '(' + arg + ')';
-                    return expr;
-                },
-                ARROW
+                (fromCharCode: string, arg: string): string =>
+                `undefined=>(isNaN+false).constructor.${fromCharCode}(${arg})`,
+                ARROW,
             ),
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr =
-                    'function(undefined){return status.constructor.' + fromCharCode + '(' + arg +
-                    ')}';
-                    return expr;
-                },
-                STATUS
+                (fromCharCode: string, arg: string): string =>
+                `function(undefined){return status.constructor.${fromCharCode}(${arg})}`,
+                STATUS,
             ),
             define
             (
-                function (fromCharCode, arg)
-                {
-                    var expr = 'undefined=>status.constructor.' + fromCharCode + '(' + arg + ')';
-                    return expr;
-                },
-                ARROW, STATUS
+                (fromCharCode: string, arg: string): string =>
+                `undefined=>status.constructor.${fromCharCode}(${arg})`,
+                ARROW, STATUS,
             ),
         ],
         [
@@ -1616,7 +1677,7 @@ export var createBridgeSolution;
             define(2, ARRAY_ITERATOR, CAPITAL_HTML),
             define(4),
             define(5),
-        ]
+        ],
     );
 
     MAPPER_FORMATTER =
@@ -1625,25 +1686,17 @@ export var createBridgeSolution;
         [
             define
             (
-                function (arg)
-                {
-                    var mapper =
-                    'Function("return function(undefined){return this' + arg + '}")().bind';
-                    return mapper;
-                }
+                (arg: string): string =>
+                `Function("return function(undefined){return this${arg}}")().bind`,
             ),
             define
             (
-                function (arg)
-                {
-                    var mapper =
-                    'Function("return falsefalse=>undefined=>falsefalse' + arg + '")()';
-                    return mapper;
-                },
-                ARROW
+                (arg: string): string =>
+                `Function("return falsefalse=>undefined=>falsefalse${arg}")()`,
+                ARROW,
             ),
         ],
-        [define(0), define(1)]
+        [define(0), define(1)],
     );
 
     OPTIMAL_B = defineList([define('B'), define('b')], [define(0), define(1, ARRAY_ITERATOR)]);
@@ -1666,14 +1719,14 @@ export var createBridgeSolution;
             define(1, ARRAY_ITERATOR, CAPITAL_HTML, FILL, NO_IE_SRC),
             define(1, ARRAY_ITERATOR, CAPITAL_HTML, FLAT, IE_SRC),
             define(2),
-        ]
+        ],
     );
 
     // Create definitions for digits
-    for (var digit = 0; digit <= 9; ++digit)
+    for (let digit = 0; digit <= 9; ++digit)
     {
-        var expr = replaceDigit(digit);
-        CHARACTERS[digit] = { expr: expr, level: Level.NUMERIC };
+        const expr = replaceDigit(digit);
+        CHARACTERS[digit] = { expr, level: Level.NUMERIC };
     }
 }
 )();

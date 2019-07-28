@@ -28,9 +28,7 @@ declare global
     const uneval: unknown;
 }
 
-const ALL =
-createEmpty() as
-{ [key: string]: undefined; } & { [K in PredefinedFeatureName]: PredefinedFeature; };
+const ALL = createEmpty() as { readonly [key: string]: undefined; } & PredefinedFeatureMap;
 
 const ELEMENTARY: PredefinedFeature[] = [];
 
@@ -49,8 +47,8 @@ const FEATURE_INFOS =
     ANY_WINDOW:
     {
         description:
-        'Existence of the global object self whose string representation starts with ' +
-        '"[object " and ends with "Window]".',
+        'Existence of the global object self whose string representation starts with "[object " ' +
+        'and ends with "Window]".',
         check:
         checkSelfFeature.bind((str: string): unknown => /^\[object .*Window]$/.test(str)),
         includes: ['SELF_OBJ'],
@@ -59,8 +57,8 @@ const FEATURE_INFOS =
     ARRAY_ITERATOR:
     {
         description:
-        'The property that the string representation of Array.prototype.entries() starts ' +
-        'with "[object Array" and ends with "]" at index 21 or 22.',
+        'The property that the string representation of Array.prototype.entries() starts with ' +
+        '"[object Array" and ends with "]" at index 21 or 22.',
         check:
         (): unknown =>
         Array.prototype.entries && /^\[object Array.{8,9}]$/.test([].entries() as any),
@@ -146,9 +144,8 @@ const FEATURE_INFOS =
     ESC_HTML_ALL:
     {
         description:
-        'The property that double quotation mark, less than and greater than characters in ' +
-        'the argument of String.prototype.fontcolor are escaped into their respective HTML ' +
-        'entities.',
+        'The property that double quotation mark, less than and greater than characters in the ' +
+        'argument of String.prototype.fontcolor are escaped into their respective HTML entities.',
         check: (): unknown => ~''.fontcolor('"<>').indexOf('&quot;&lt;&gt;'),
         includes: ['ESC_HTML_QUOT'],
         excludes: ['ESC_HTML_QUOT_ONLY'],
@@ -156,15 +153,15 @@ const FEATURE_INFOS =
     ESC_HTML_QUOT:
     {
         description:
-        'The property that double quotation marks in the argument of ' +
-        'String.prototype.fontcolor are escaped as "&quot;".',
+        'The property that double quotation marks in the argument of String.prototype.fontcolor ' +
+        'are escaped as "&quot;".',
         check: (): unknown => ~''.fontcolor('"').indexOf('&quot;'),
     },
     ESC_HTML_QUOT_ONLY:
     {
         description:
-        'The property that only double quotation marks and no other characters in the ' +
-        'argument of String.prototype.fontcolor are escaped into HTML entities.',
+        'The property that only double quotation marks and no other characters in the argument ' +
+        'of String.prototype.fontcolor are escaped into HTML entities.',
         check: (): unknown => ~''.fontcolor('"<>').indexOf('&quot;<>'),
         includes: ['ESC_HTML_QUOT'],
         excludes: ['ESC_HTML_ALL'],
@@ -197,9 +194,9 @@ const FEATURE_INFOS =
     {
         description:
         'A string representation of native functions typical for Firefox and Safari.\n' +
-        'Remarkable traits are the lack of line feed characters at the beginning and at the ' +
-        'end of the string and the presence of a line feed followed by four whitespaces ' +
-        '("\\n    ") before the "[native code]" sequence.',
+        'Remarkable traits are the lack of line feed characters at the beginning and at the end ' +
+        'of the string and the presence of a line feed followed by four whitespaces ("\\n    ") ' +
+        'before the "[native code]" sequence.',
         includes: ['NO_IE_SRC', 'NO_V8_SRC'],
         excludes: ['NO_FF_SRC'],
     },
@@ -221,15 +218,15 @@ const FEATURE_INFOS =
     FUNCTION_19_LF:
     {
         description:
-        'A string representation of dynamically generated functions where the character at ' +
-        'index 19 is a line feed ("\\n").',
+        'A string representation of dynamically generated functions where the character at index ' +
+        '19 is a line feed ("\\n").',
         check: (): unknown => `${Function()}`[19] === '\n',
     },
     FUNCTION_22_LF:
     {
         description:
-        'A string representation of dynamically generated functions where the character at ' +
-        'index 22 is a line feed ("\\n").',
+        'A string representation of dynamically generated functions where the character at index ' +
+        '22 is a line feed ("\\n").',
         check: (): unknown => `${Function()}`[22] === '\n',
     },
     GMT:
@@ -237,9 +234,9 @@ const FEATURE_INFOS =
         description:
         'Presence of the text "GMT" after the first 25 characters in the string returned by ' +
         'Date().\n' +
-        'The string representation of dates is implementation dependent, but most engines ' +
-        'use a similar format, making this feature available in all supported engines except ' +
-        'Internet Explorer 9 and 10.',
+        'The string representation of dates is implementation dependent, but most engines use a ' +
+        'similar format, making this feature available in all supported engines except Internet ' +
+        'Explorer 9 and 10.',
         check: (): unknown => /^.{25}GMT/.test(Date()),
     },
     HISTORY:
@@ -254,8 +251,8 @@ const FEATURE_INFOS =
     HTMLAUDIOELEMENT:
     {
         description:
-        'Existence of the global object Audio whose string representation starts with ' +
-        '"function HTMLAudioElement".',
+        'Existence of the global object Audio whose string representation starts with "function ' +
+        'HTMLAudioElement".',
         check:
         (): unknown =>
         typeof Audio !== 'undefined' && /^function HTMLAudioElement/.test(Audio as any),
@@ -278,18 +275,18 @@ const FEATURE_INFOS =
     {
         description:
         'A string representation of native functions typical for Internet Explorer.\n' +
-        'Remarkable traits are the presence of a line feed character ("\\n") at the ' +
-        'beginning and at the end of the string and a line feed followed by four whitespaces ' +
-        '("\\n    ") before the "[native code]" sequence.',
+        'Remarkable traits are the presence of a line feed character ("\\n") at the beginning ' +
+        'and at the end of the string and a line feed followed by four whitespaces ("\\n    ") ' +
+        'before the "[native code]" sequence.',
         includes: ['NO_FF_SRC', 'NO_V8_SRC'],
         excludes: ['NO_IE_SRC'],
     },
     INCR_CHAR:
     {
         description:
-        'The ability to use unary increment operators with string characters, like in ( ' +
-        '++"some string"[0] ): this will result in a TypeError in strict mode in ECMAScript ' +
-        'compliant engines.',
+        'The ability to use unary increment operators with string characters, like in ( ++"some ' +
+        'string"[0] ): this will result in a TypeError in strict mode in ECMAScript compliant ' +
+        'engines.',
         check: (): unknown => true,
         attributes: { 'forced-strict-mode': 'char-increment-restriction' },
     },
@@ -329,10 +326,10 @@ const FEATURE_INFOS =
     NO_IE_SRC:
     {
         description:
-        'A string representation of native functions typical for most engines with the ' +
-        'notable exception of Internet Explorer.\n' +
-        'A remarkable trait of this feature is the lack of line feed characters at the ' +
-        'beginning and at the end of the string.',
+        'A string representation of native functions typical for most engines with the notable ' +
+        'exception of Internet Explorer.\n' +
+        'A remarkable trait of this feature is the lack of line feed characters at the beginning ' +
+        'and at the end of the string.',
         check:
         (): unknown => /^function Object\(\) \{(\n   )? \[native code]\s\}/.test(Object as any),
         excludes: ['IE_SRC'],
@@ -340,8 +337,8 @@ const FEATURE_INFOS =
     NO_OLD_SAFARI_ARRAY_ITERATOR:
     {
         description:
-        'The property that the string representation of Array.prototype.entries() evaluates ' +
-        'to "[object Array Iterator]".',
+        'The property that the string representation of Array.prototype.entries() evaluates to ' +
+        '"[object Array Iterator]".',
         check:
         (): unknown =>
         Array.prototype.entries && `${[].entries()}` === '[object Array Iterator]',
@@ -350,10 +347,10 @@ const FEATURE_INFOS =
     NO_V8_SRC:
     {
         description:
-        'A string representation of native functions typical for Firefox, Internet Explorer ' +
-        'and Safari.\n' +
-        'A most remarkable trait of this feature is the presence of a line feed followed by ' +
-        'four whitespaces ("\\n    ") before the "[native code]" sequence.',
+        'A string representation of native functions typical for Firefox, Internet Explorer and ' +
+        'Safari.\n' +
+        'A most remarkable trait of this feature is the presence of a line feed followed by four ' +
+        'whitespaces ("\\n    ") before the "[native code]" sequence.',
         check:
         (): unknown => /^\n?function Object\(\) \{\n    \[native code]\s\}/.test(Object as any),
         excludes: ['V8_SRC'],
@@ -362,8 +359,7 @@ const FEATURE_INFOS =
     SELF_OBJ:
     {
         description:
-        'Existence of the global object self whose string representation starts with ' +
-        '"[object ".',
+        'Existence of the global object self whose string representation starts with "[object ".',
         check: checkSelfFeature.bind((str: string): unknown => /^\[object /.test(str)),
         attributes: { 'web-worker': 'safari-bug-21820506' },
     },
@@ -376,15 +372,13 @@ const FEATURE_INFOS =
     UNDEFINED:
     {
         description:
-        'The property that Object.prototype.toString.call() evaluates to "[object ' +
-        'Undefined]".\n' +
-        'This behavior is specified by ECMAScript, and is enforced by all engines except ' +
-        'Android Browser versions prior to 4.1.2, where this feature is not available.',
+        'The property that Object.prototype.toString.call() evaluates to "[object Undefined]".\n' +
+        'This behavior is specified by ECMAScript, and is enforced by all engines except Android ' +
+        'Browser versions prior to 4.1.2, where this feature is not available.',
         check:
         (): unknown =>
         {
-            const toString = Object.prototype.toString as { } as { call(): unknown; };
-            const available = toString.call() === '[object Undefined]';
+            const available = Object.prototype.toString.call() === '[object Undefined]';
             return available;
         },
     },
@@ -396,19 +390,18 @@ const FEATURE_INFOS =
     V8_SRC:
     {
         description:
-        'A string representation of native functions typical for the V8 engine, but also ' +
-        'found in Edge.\n' +
-        'Remarkable traits are the lack of line feed characters at the beginning and at the ' +
-        'end of the string and the presence of a single whitespace before the "[native ' +
-        'code]" sequence.',
+        'A string representation of native functions typical for the V8 engine, but also found ' +
+        'in Edge.\n' +
+        'Remarkable traits are the lack of line feed characters at the beginning and at the end ' +
+        'of the string and the presence of a single whitespace before the "[native code]" ' +
+        'sequence.',
         includes: ['NO_FF_SRC', 'NO_IE_SRC'],
         excludes: ['NO_V8_SRC'],
     },
     WINDOW:
     {
         description:
-        'Existence of the global object self having the string representation "[object ' +
-        'Window]".',
+        'Existence of the global object self having the string representation "[object Window]".',
         check: checkSelfFeature.bind((str: string): unknown => str === '[object Window]'),
         includes: ['ANY_WINDOW'],
         excludes: ['DOMWINDOW'],
@@ -437,8 +430,8 @@ const FEATURE_INFOS =
     {
         description:
         'All new browsers\' features.\n' +
-        'No support for Node.js and older browsers like Internet Explorer, Safari 9 or ' +
-        'Android Browser.',
+        'No support for Node.js and older browsers like Internet Explorer, Safari 9 or Android ' +
+        'Browser.',
         includes:
         [
             'ARROW',
@@ -1048,7 +1041,7 @@ const FEATURE_INFOS =
     },
 };
 
-export class Feature
+class FeatureBase
 {
     public readonly attributes!:        { [key: string]: unknown; };
     public readonly canonicalNames!:    string[];
@@ -1064,6 +1057,16 @@ export class Feature
         return featureObj;
     }
 }
+
+interface FeatureConstructor extends PredefinedFeatureMap
+{
+    readonly prototype: Feature;
+    new (): Feature;
+    (): Feature;
+}
+
+export type Feature = FeatureBase;
+export const Feature = FeatureBase as FeatureConstructor;
 
 const featurePrototype = Feature.prototype;
 
@@ -1085,6 +1088,8 @@ type FeatureInfo =
 };
 
 interface PredefinedFeature extends Feature { readonly name: PredefinedFeatureName; }
+
+type PredefinedFeatureMap = { readonly [K in PredefinedFeatureName]: PredefinedFeature; };
 
 type PredefinedFeatureName = keyof typeof FEATURE_INFOS | 'AUTO';
 
@@ -1308,7 +1313,7 @@ function registerFeature(name: PredefinedFeatureName, featureObj: PredefinedFeat
 {
     const descriptor = { enumerable: true, value: featureObj };
     _Object_defineProperty(Feature, name, descriptor);
-    ALL[name] = featureObj;
+    (ALL as { [K in PredefinedFeatureName]: PredefinedFeature; })[name] = featureObj;
 }
 
 export function validMaskFromArrayOrStringOrFeature(arg: FeatureArgument): Mask

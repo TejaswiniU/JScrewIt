@@ -2,9 +2,9 @@ import { Feature, featuresToMask }  from './features';
 import Mask, { maskUnion }          from './mask';
 import { _Array_prototype }         from './obj-utils';
 
-interface DefinitionEntry<T> { readonly definition: T; readonly mask: Mask; }
+export interface DefinitionEntry<T> { readonly definition: T; readonly mask: Mask; }
 
-type DefinitionEntryList<T> = readonly DefinitionEntry<T>[];
+export type DefinitionEntryList<T> = readonly DefinitionEntry<T>[];
 
 function createDefinitionEntry<T>(definition: T, mask: Mask): DefinitionEntry<T>
 {

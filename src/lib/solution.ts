@@ -3,6 +3,9 @@ import { _Object_defineProperty, assignNoEnum } from './obj-utils';
 
 export default class Solution
 {
+    public appendLength!:           number;
+    public bridge?:                 string;
+
     /**
      * Indicates whether this solution contains a plus sign out of brackets not preceded by an
      * exclamation mark or by another plus sign.

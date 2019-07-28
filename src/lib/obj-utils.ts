@@ -1,4 +1,9 @@
-declare global { interface ArrayConstructor { isArray(arg: any): arg is any[] | readonly any[]; } }
+declare global
+{
+    interface ArrayConstructor { isArray(arg: any): arg is any[] | readonly any[]; }
+    interface CallableFunction extends Function { call<T, R>(this: (this: T) => R): R; }
+    interface String { charCodeAt(): number; }
+}
 
 export const _Array                         = Array;
 export const _Array_isArray                 = _Array.isArray;
