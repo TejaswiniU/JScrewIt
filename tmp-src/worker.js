@@ -1,1 +1,0 @@
-export default "\"use strict\";self.onmessage=function(t){var r=t.data,e=r.url;null!=e&&importScripts(e);var s=r.input;if(null!=s){var n;try{n={output:JScrewIt.encode(s,r.options)}}catch(t){n={error:String(t)}}postMessage(n)}};";
