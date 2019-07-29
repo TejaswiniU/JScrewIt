@@ -1041,7 +1041,18 @@ const FEATURE_INFOS =
     },
 };
 
-interface ElementaryFeature extends PredefinedFeature { readonly elementary: true; }
+interface ElementaryFeature extends PredefinedFeature
+{
+    readonly elementary:    true;
+    readonly name:          ElementaryFeatureName;
+}
+
+type ElementaryFeatureName =
+{
+    [K in FeatureInfoKey]:
+    FeatureInfoMap[K] extends { readonly check: unknown; } | { readonly extends: unknown; } ?
+    K : never;
+}[FeatureInfoKey];
 
 interface FeatureConstructor extends PredefinedFeatureMap
 {
@@ -1069,6 +1080,10 @@ type FeatureInfo =
     readonly attributes?:   { [key: string]: unknown; };
 };
 
+type FeatureInfoKey = keyof FeatureInfoMap;
+
+type FeatureInfoMap = typeof FEATURE_INFOS;
+
 interface PredefinedFeature extends Feature
 {
     readonly description:   string;
@@ -1077,14 +1092,14 @@ interface PredefinedFeature extends Feature
 
 type PredefinedFeatureMap = { readonly [K in PredefinedFeatureNameOrAlias]: PredefinedFeature; };
 
-type PredefinedFeatureNameOrAlias = keyof typeof FEATURE_INFOS | 'AUTO';
+type PredefinedFeatureNameOrAlias = FeatureInfoKey | 'AUTO';
 
 class FeatureBase
 {
     public readonly attributes!:        { [key: string]: unknown; };
-    public readonly canonicalNames!:    PredefinedFeatureNameOrAlias[];
+    public readonly canonicalNames!:    ElementaryFeatureName[];
     public description?:                string;
-    public readonly elementaryNames!:   PredefinedFeatureNameOrAlias[];
+    public readonly elementaryNames!:   ElementaryFeatureName[];
     public readonly mask!:              Mask;
     public name?:                       string;
 
@@ -1298,10 +1313,8 @@ boolean
     let returnValue = attributeCache[attributeName];
     if (returnValue === undefined)
     {
-        attributeCache[attributeName] =
-        returnValue =
-        featureObjs.some
-        ((featureObj: Feature): boolean => attributeName in featureObj.attributes);
+        attributeCache[attributeName] = returnValue =
+        featureObjs.some(({ attributes }): boolean => attributeName in attributes);
     }
     return returnValue;
 }
@@ -1381,18 +1394,17 @@ function wrapCheck(check: () => unknown): () => boolean
     return returnValue;
 }
 
-const includesMap =
-createEmpty() as { [K in keyof typeof FEATURE_INFOS]: PredefinedFeatureNameOrAlias[]; };
+const includesMap = createEmpty() as { [K in FeatureInfoKey]: PredefinedFeatureNameOrAlias[]; };
 
 let incompatibleMaskList: Mask[];
 
 const protoSource =
 {
-    get canonicalNames(this: Feature): PredefinedFeatureNameOrAlias[]
+    get canonicalNames(this: Feature): ElementaryFeatureName[]
     {
         const { mask } = this;
-        const featureNameSet: { [K in PredefinedFeatureNameOrAlias]?: null; } = createEmpty();
-        const allIncludes: PredefinedFeatureNameOrAlias[] = [];
+        const featureNameSet: { [K in ElementaryFeatureName]?: null; } = createEmpty();
+        const allIncludes: ElementaryFeatureName[] = [];
         ELEMENTARY.forEach
         (
             (featureObj: ElementaryFeature): void =>
@@ -1400,16 +1412,17 @@ const protoSource =
                 const included = maskIncludes(mask, featureObj.mask);
                 if (included)
                 {
-                    const name = featureObj.name as keyof typeof FEATURE_INFOS;
+                    const { name } = featureObj;
                     featureNameSet[name] = null;
-                    const includes = includesMap[name];
+                    // An elementary feature can only include elementary features.
+                    const includes = includesMap[name] as ElementaryFeatureName[];
                     _Array_prototype_push.apply(allIncludes, includes);
                 }
             },
         );
         allIncludes.forEach
         (
-            (name: PredefinedFeatureNameOrAlias): void =>
+            (name: ElementaryFeatureName): void =>
             {
                 delete featureNameSet[name];
             },
@@ -1422,9 +1435,9 @@ const protoSource =
 
     elementary: false,
 
-    get elementaryNames(this: Feature): PredefinedFeatureNameOrAlias[]
+    get elementaryNames(this: Feature): ElementaryFeatureName[]
     {
-        const names: PredefinedFeatureNameOrAlias[] = [];
+        const names: ElementaryFeatureName[] = [];
         const { mask } = this;
         ELEMENTARY.forEach
         (
@@ -1506,17 +1519,17 @@ const protoSource =
 
 {
     const completeExclusions =
-    (name: keyof typeof FEATURE_INFOS): void =>
+    (name: FeatureInfoKey): void =>
     {
-        const info = featureInfos[name];
-        const { excludes } = info as { excludes?: (keyof typeof FEATURE_INFOS)[]; };
+        const info: FeatureInfo | string = FEATURE_INFOS[name];
+        const { excludes } = info as { excludes?: readonly FeatureInfoKey[]; };
         if (excludes)
         {
             const featureObj = ALL[name];
             const { mask } = featureObj;
             excludes.forEach
             (
-                (exclude: keyof typeof FEATURE_INFOS): void =>
+                (exclude: FeatureInfoKey): void =>
                 {
                     const excludeMask = completeFeature(exclude);
                     const incompatibleMask = maskUnion(mask, excludeMask);
@@ -1527,7 +1540,7 @@ const protoSource =
     };
 
     const completeFeature =
-    (name: keyof typeof FEATURE_INFOS): Mask =>
+    (name: FeatureInfoKey): Mask =>
     {
         let mask: Mask;
         let featureObj = ALL[name];
@@ -1535,10 +1548,10 @@ const protoSource =
             ({ mask } = featureObj);
         else
         {
-            const info = featureInfos[name];
+            const info: FeatureInfo | string = FEATURE_INFOS[name];
             if (typeof info === 'string')
             {
-                mask = completeFeature(info as keyof typeof FEATURE_INFOS);
+                mask = completeFeature(info as FeatureInfoKey);
                 featureObj = ALL[info as PredefinedFeatureNameOrAlias];
             }
             else
@@ -1554,11 +1567,10 @@ const protoSource =
                 }
                 else
                     mask = maskNew();
-                const includes = includesMap[name] =
-                (info.includes || []) as (keyof typeof FEATURE_INFOS)[];
+                const includes = includesMap[name] = (info.includes || []) as FeatureInfoKey[];
                 includes.forEach
                 (
-                    (include: keyof typeof FEATURE_INFOS): void =>
+                    (include: FeatureInfoKey): void =>
                     {
                         const includeMask = completeFeature(include);
                         mask = maskUnion(mask, includeMask);
@@ -1583,9 +1595,6 @@ const protoSource =
     };
 
     const constructorSource = { ALL, ELEMENTARY, areCompatible, areEqual, commonOf };
-
-    const featureInfos: { [K in keyof typeof FEATURE_INFOS]: FeatureInfo | string; } =
-    FEATURE_INFOS;
 
     assignNoEnum(Feature, constructorSource);
 

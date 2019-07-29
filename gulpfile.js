@@ -284,6 +284,10 @@ task
     ),
 );
 
+task('make:lib', series('prepare:lib', 'bundle:lib', 'minify:lib'));
+
+task('make:ui', series('bundle:ui', 'minify:ui'));
+
 // The docs task is not executed by the default task because the files it generates are not included
 // in the repository or in a distribution package.
 task

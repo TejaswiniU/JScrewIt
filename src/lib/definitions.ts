@@ -60,19 +60,6 @@ interface SolutionDefinition
 
 type SolutionProvider = (this: Encoder) => Solution;
 
-function defineSimple(simple: string, expr: string, level: Level): void
-{
-    function get(): Solution
-    {
-        const definition = { expr, level };
-        const solution = SIMPLE.resolveSimple(simple, definition);
-        _Object_defineProperty(SIMPLE, simple, { value: solution });
-        return solution;
-    }
-
-    _Object_defineProperty(SIMPLE, simple, { configurable: true, enumerable: true, get });
-}
-
 export const AMENDINGS = ['true', 'undefined', 'NaN'];
 
 export const JSFUCK_INFINITY = '1e1000';
@@ -80,23 +67,17 @@ export const JSFUCK_INFINITY = '1e1000';
 export const SIMPLE =
 { } as unknown as { resolveSimple: (simple: string, definition: SolutionDefinition) => Solution; };
 
-defineSimple('false',       '![]',              Level.NUMERIC);
-defineSimple('true',        '!![]',             Level.NUMERIC);
-defineSimple('undefined',   '[][[]]',           Level.UNDEFINED);
-defineSimple('NaN',         '+[false]',         Level.NUMERIC);
-defineSimple('Infinity',    JSFUCK_INFINITY,    Level.NUMERIC);
-
 export let FROM_CHAR_CODE:          DefinitionEntryList<string>;
 export let FROM_CHAR_CODE_CALLBACK_FORMATTER:
 DefinitionEntryList<(fromCharCode: string, arg: string) => string>;
 export let MAPPER_FORMATTER:        DefinitionEntryList<(arg: string) => string>;
 export let OPTIMAL_B:               DefinitionEntryList<string>;
 export let OPTIMAL_RETURN_STRING:   DefinitionEntryList<string>;
-export let BASE64_ALPHABET_HI_2:    string[];
-export let BASE64_ALPHABET_HI_4:    (string | DefinitionEntryList<string>)[];
-export let BASE64_ALPHABET_HI_6:    string[];
-export let BASE64_ALPHABET_LO_2:    string[];
-export let BASE64_ALPHABET_LO_4:    (string | DefinitionEntryList<string>)[];
+export let BASE64_ALPHABET_HI_2:    readonly string[];
+export let BASE64_ALPHABET_HI_4:    readonly (string | DefinitionEntryList<string>)[];
+export let BASE64_ALPHABET_HI_6:    readonly string[];
+export let BASE64_ALPHABET_LO_2:    readonly string[];
+export let BASE64_ALPHABET_LO_4:    readonly (string | DefinitionEntryList<string>)[];
 export let BASE64_ALPHABET_LO_6:    string;
 
 export let CHARACTERS:
@@ -113,7 +94,79 @@ export let COMPLEX: { [K in string]?: DefinitionEntry<string | SolutionDefinitio
 export let CONSTANTS:
 { [K in string]?: string | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>; };
 
-export let createBridgeSolution: (bridge: string) => Solution;
+function commaDefinition(this: Encoder): Solution
+{
+    const bridge = `[${this.replaceString('concat')}]`;
+    const solution = createBridgeSolution(bridge);
+    return solution;
+}
+
+export function createBridgeSolution(bridge: string): Solution
+{
+    const replacement = `[[]]${bridge}([[]])`;
+    const solution = new Solution(replacement, Level.OBJECT, false);
+    const appendLength = bridge.length - 1;
+    solution.appendLength = appendLength;
+    solution.bridge = bridge;
+    return solution;
+}
+
+function createCharAtDefinitionFH
+(
+    expr:           string,
+    index:          number,
+    entries:        FunctionIndexDefinitionEntryList,
+    paddingInfos:   FunctionPaddingDefinitionEntryList,
+):
+SolutionProvider
+{
+    function definitionFH(this: Encoder): Solution
+    {
+        const solution = this.resolveExprAt(expr, index, entries, paddingInfos);
+        return solution;
+    }
+
+    return definitionFH;
+}
+
+function createCharDefaultDefinition
+(
+    charCode: number,
+    atobOpt: boolean,
+    charCodeOpt: boolean,
+    escSeqOpt: boolean,
+    unescapeOpt: boolean,
+):
+SolutionProvider
+{
+    function charDefaultDefinition(this: Encoder): Solution
+    {
+        const solution =
+        this.createCharDefaultSolution(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt);
+        return solution;
+    }
+
+    return charDefaultDefinition;
+}
+
+function defineSimple(simple: string, expr: string, level: Level): void
+{
+    function get(): Solution
+    {
+        const definition = { expr, level };
+        const solution = SIMPLE.resolveSimple(simple, definition);
+        _Object_defineProperty(SIMPLE, simple, { value: solution });
+        return solution;
+    }
+
+    _Object_defineProperty(SIMPLE, simple, { configurable: true, enumerable: true, get });
+}
+
+defineSimple('false',       '![]',              Level.NUMERIC);
+defineSimple('true',        '!![]',             Level.NUMERIC);
+defineSimple('undefined',   '[][[]]',           Level.UNDEFINED);
+defineSimple('NaN',         '+[false]',         Level.NUMERIC);
+defineSimple('Infinity',    JSFUCK_INFINITY,    Level.NUMERIC);
 
 ((): void =>
 {
@@ -265,13 +318,6 @@ export let createBridgeSolution: (bridge: string) => Solution;
         define({ blocks: R_PADDINGS, shift: 1 }, IE_SRC),
     ];
 
-    function commaDefinition(this: Encoder): Solution
-    {
-        const bridge = `[${this.replaceString('concat')}]`;
-        const solution = createBridgeSolution(bridge);
-        return solution;
-    }
-
     function createCharAtDefinitionFB(offset: number): SolutionProvider
     {
         function definitionFB(this: Encoder): Solution
@@ -357,44 +403,6 @@ export let createBridgeSolution: (bridge: string) => Solution;
         }
 
         return definitionFB;
-    }
-
-    function createCharAtDefinitionFH
-    (
-        expr:           string,
-        index:          number,
-        entries:        FunctionIndexDefinitionEntryList,
-        paddingInfos:   FunctionPaddingDefinitionEntryList,
-    ):
-    SolutionProvider
-    {
-        function definitionFH(this: Encoder): Solution
-        {
-            const solution = this.resolveExprAt(expr, index, entries, paddingInfos);
-            return solution;
-        }
-
-        return definitionFH;
-    }
-
-    function createCharDefaultDefinition
-    (
-        charCode: number,
-        atobOpt: boolean,
-        charCodeOpt: boolean,
-        escSeqOpt: boolean,
-        unescapeOpt: boolean,
-    ):
-    SolutionProvider
-    {
-        function charDefaultDefinition(this: Encoder): Solution
-        {
-            const solution =
-            this.createCharDefaultSolution(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt);
-            return solution;
-        }
-
-        return charDefaultDefinition;
     }
 
     function defineCharDefault
@@ -1585,17 +1593,6 @@ export let createBridgeSolution: (bridge: string) => Solution;
             define('!!++(ANY_FUNCTION + [])[0]', INCR_CHAR),
         ],
     });
-
-    createBridgeSolution =
-    function (bridge: string): Solution
-    {
-        const replacement = `[[]]${bridge}([[]])`;
-        const solution = new Solution(replacement, Level.OBJECT, false);
-        const appendLength = bridge.length - 1;
-        solution.appendLength = appendLength;
-        solution.bridge = bridge;
-        return solution;
-    };
 
     FROM_CHAR_CODE =
     defineList
