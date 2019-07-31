@@ -1075,8 +1075,8 @@ type FeatureInfo =
 &
 {
     readonly check?:        () => unknown;
-    readonly includes?:     string[];
-    readonly excludes?:     string[];
+    readonly includes?:     readonly string[];
+    readonly excludes?:     readonly string[];
     readonly attributes?:   { [key: string]: unknown; };
 };
 
@@ -1394,9 +1394,10 @@ function wrapCheck(check: () => unknown): () => boolean
     return returnValue;
 }
 
-const includesMap = createEmpty() as { [K in FeatureInfoKey]: PredefinedFeatureNameOrAlias[]; };
+const includesMap =
+createEmpty() as { [K in FeatureInfoKey]: readonly PredefinedFeatureNameOrAlias[]; };
 
-let incompatibleMaskList: Mask[];
+let incompatibleMaskList: readonly Mask[];
 
 const protoSource =
 {
@@ -1415,7 +1416,7 @@ const protoSource =
                     const { name } = featureObj;
                     featureNameSet[name] = null;
                     // An elementary feature can only include elementary features.
-                    const includes = includesMap[name] as ElementaryFeatureName[];
+                    const includes = includesMap[name] as readonly ElementaryFeatureName[];
                     _Array_prototype_push.apply(allIncludes, includes);
                 }
             },
@@ -1567,7 +1568,8 @@ const protoSource =
                 }
                 else
                     mask = maskNew();
-                const includes = includesMap[name] = (info.includes || []) as FeatureInfoKey[];
+                const includes = includesMap[name] =
+                (info.includes || []) as readonly FeatureInfoKey[];
                 includes.forEach
                 (
                     (include: FeatureInfoKey): void =>

@@ -1,7 +1,13 @@
 declare global
 {
+    interface Array<T> { push(...items: readonly T[]): number; }
     interface ArrayConstructor { isArray(arg: any): arg is any[] | readonly any[]; }
-    interface CallableFunction extends Function { call<T, R>(this: (this: T) => R): R; }
+    interface CallableFunction extends Function
+    {
+        apply
+        <T, A extends readonly any[], R>(this: (this: T, ...args: A) => R, thisArg: T, args: A): R;
+        call<T, R>(this: (this: T) => R): R;
+    }
     interface String { charCodeAt(): number; }
 }
 
