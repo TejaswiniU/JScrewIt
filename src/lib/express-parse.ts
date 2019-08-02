@@ -19,32 +19,66 @@ import { _Array_isArray, _Function, _JSON_parse, _RegExp, _String, createEmpty }
 // * Semicolons
 // * Comments
 
-function appendGetOp(parseInfo, op)
+interface ExpressUnit
 {
-    var str = stringifyUnit(op);
+    arithmetic?: boolean;
+    readonly identifier?: string;
+    mod?: string;
+    ops?: ExpressUnit[];
+    pmod?: string;
+    str?: string;
+    terms?: ExpressUnit[];
+    type?: 'call' | 'get' | 'param-call';
+    value?: readonly ExpressUnit[] | boolean | number | string | undefined;
+}
+
+type Finalizer = (unit: ExpressUnit, parseInfo: ParseInfo) => FinalizerResult;
+type FinalizerResult = ExpressUnit | Parser;
+
+interface IdentifierData
+{
+    readonly escaped:       boolean;
+    readonly identifier:    string;
+}
+
+interface ParseInfo
+{
+    data: string;
+    readonly finalizerStack: Finalizer[];
+    readonly modStack: string[];
+    readonly opsStack: ExpressUnit[][];
+    separator?: string;
+    readonly unitStack: (ExpressUnit | undefined)[];
+}
+
+type Parser = ((parseInfo: ParseInfo) => FinalizerResult) | undefined;
+
+function appendGetOp(parseInfo: ParseInfo, op: ExpressUnit): void
+{
+    const str = stringifyUnit(op);
     if (str != null)
         op.str = str;
     op.type = 'get';
     appendOp(parseInfo, op);
 }
 
-function appendOp(parseInfo, op)
+function appendOp(parseInfo: ParseInfo, op: ExpressUnit): void
 {
-    var opsStack = parseInfo.opsStack;
-    var ops = opsStack[opsStack.length - 1];
+    const { opsStack } = parseInfo;
+    const ops = opsStack[opsStack.length - 1];
     ops.push(op);
 }
 
-function appendTerm(parseInfo, term)
+function appendTerm(parseInfo: ParseInfo, term: ExpressUnit): FinalizerResult
 {
-    var unit = popUnit(parseInfo);
-    var mod = popMod(parseInfo);
+    let unit = popUnit(parseInfo);
+    let mod = popMod(parseInfo);
     applyMod(term, mod);
     if (unit)
     {
         if (!finalizeUnit(term))
             return;
-        var terms = unit.terms;
+        const { terms } = unit;
         if (terms && isUndecoratedUnit(unit))
         {
             terms.push(term);
@@ -55,16 +89,16 @@ function appendTerm(parseInfo, term)
         {
             if (!finalizeUnit(unit))
                 return;
-            var arithmetic = unit.arithmetic && term.arithmetic;
-            unit = { arithmetic: arithmetic, ops: [], terms: [unit, term] };
+            const arithmetic = unit.arithmetic && term.arithmetic;
+            unit = { arithmetic, ops: [], terms: [unit, term] };
         }
     }
     else
         unit = term;
-    var binSign = read(parseInfo, /^(?:\+(?!\+)|-(?!-))/);
+    const binSign = read(parseInfo, /^(?:\+(?!\+)|-(?!-))/);
     if (!binSign)
     {
-        var finalizer = popFinalizer(parseInfo);
+        const finalizer = popFinalizer(parseInfo);
         return finalizer(unit, parseInfo);
     }
     if (binSign === '-' && !unit.arithmetic)
@@ -75,25 +109,26 @@ function appendTerm(parseInfo, term)
     return parsePrimaryExpr;
 }
 
-function applyMod(unit, mod)
+function applyMod(unit: ExpressUnit, mod: string): void
 {
     if (!unit.mod && 'value' in unit && unit.arithmetic && !unit.pmod)
     {
-        var value = unit.value;
+        let value = unit.value as boolean | number | undefined;
+        let index = mod.length;
         loop:
-        for (var index = mod.length; index--;)
+        while (index--)
         {
-            var thisMod = mod[index];
+            const thisMod = mod[index];
             switch (thisMod)
             {
             case '!':
                 value = !value;
                 break;
             case '+':
-                value = +value;
+                value = +(value as any);
                 break;
             case '-':
-                value = -value;
+                value = -(value as any);
                 break;
             case '#':
                 break loop;
@@ -110,33 +145,33 @@ function applyMod(unit, mod)
     }
 }
 
-function defaultReadIdentifierData(parseInfo)
+function defaultReadIdentifierData(parseInfo: ParseInfo): IdentifierData | undefined
 {
-    var rawIdentifier = read(parseInfo, rawIdentifierRegExp);
+    const rawIdentifier = read(parseInfo, rawIdentifierRegExp);
     if (rawIdentifier)
     {
-        var identifier = _JSON_parse('"' + rawIdentifier + '"');
+        const identifier = _JSON_parse(`"${rawIdentifier}"`);
         if (/^[$A-Z_a-z][$\w]*$/.test(identifier))
         {
-            var escaped = identifier.length < rawIdentifier.length;
-            return { escaped: escaped, identifier: identifier };
+            const escaped = identifier.length < rawIdentifier.length;
+            return { escaped, identifier };
         }
     }
 }
 
-function escapeMod(mod)
+function escapeMod(mod: string): string
 {
-    var escapedMod = mod.replace(/\+\+/g, '#');
+    const escapedMod = mod.replace(/\+\+/g, '#');
     return escapedMod;
 }
 
-function evalExpr(expr)
+function evalExpr(expr: string): boolean | number | string | undefined
 {
-    var value = _Function('return ' + expr)();
+    const value = _Function(`return ${expr}`)() as boolean | number | string | undefined;
     return value;
 }
 
-function finalizeArrayElement(unit, parseInfo)
+function finalizeArrayElement(unit: ExpressUnit, parseInfo: ParseInfo): Parser
 {
     if (finalizeUnit(unit) && readSquareBracketRight(parseInfo))
     {
@@ -145,7 +180,7 @@ function finalizeArrayElement(unit, parseInfo)
     }
 }
 
-function finalizeGroup(unit, parseInfo)
+function finalizeGroup(unit: ExpressUnit, parseInfo: ParseInfo): Parser
 {
     if (readParenthesisRight(parseInfo))
     {
@@ -154,7 +189,7 @@ function finalizeGroup(unit, parseInfo)
     }
 }
 
-function finalizeIndexer(op, parseInfo)
+function finalizeIndexer(op: ExpressUnit, parseInfo: ParseInfo): Parser
 {
     if (finalizeUnit(op) && readSquareBracketRight(parseInfo))
     {
@@ -163,7 +198,7 @@ function finalizeIndexer(op, parseInfo)
     }
 }
 
-function finalizeParamCall(op, parseInfo)
+function finalizeParamCall(op: ExpressUnit, parseInfo: ParseInfo): Parser
 {
     if (finalizeUnit(op) && readParenthesisRight(parseInfo))
     {
@@ -173,33 +208,33 @@ function finalizeParamCall(op, parseInfo)
     }
 }
 
-function finalizeUnit(unit)
+function finalizeUnit(unit: ExpressUnit): ExpressUnit | undefined
 {
-    var mod = unit.mod || '';
-    if (!/-/.test(mod) && (!/#$/.test(mod) || unit.ops.length))
+    const mod = unit.mod || '';
+    if (!/-/.test(mod) && (!/#$/.test(mod) || unit.ops!.length))
     {
         unit.mod = unescapeMod(mod);
         return unit;
     }
 }
 
-function isReturnableIdentifier(identifier, escaped)
+function isReturnableIdentifier(identifier: string, escaped: boolean): boolean
 {
-    var returnable =
+    const returnable =
     UNRETURNABLE_WORDS.indexOf(identifier) < 0 &&
     (!escaped || INESCAPABLE_WORDS.indexOf(identifier) < 0);
     return returnable;
 }
 
-function isUndecoratedUnit(unit)
+function isUndecoratedUnit(unit: ExpressUnit): boolean
 {
-    var undecorated = !(unit.mod || unit.ops.length);
+    const undecorated = !(unit.mod || unit.ops!.length);
     return undecorated;
 }
 
-function joinMods(mod1, mod2, trimTrailingPlus)
+function joinMods(mod1: string, mod2: string, trimTrailingPlus?: unknown): string
 {
-    var mod =
+    let mod =
     (mod1 + mod2)
     .replace(/\+\+|--/, '+')
     .replace(/\+-|-\+/, '-')
@@ -212,26 +247,27 @@ function joinMods(mod1, mod2, trimTrailingPlus)
     return mod;
 }
 
-function makeRegExp(richPattern)
+function makeRegExp(richPattern: string): RegExp
 {
-    var pattern = '^(?:' + replacePattern(richPattern) + ')';
-    var regExp = _RegExp(pattern);
+    const pattern = `^(?:${replacePattern(richPattern)})`;
+    const regExp = _RegExp(pattern);
     return regExp;
 }
 
-function newOps(parseInfo, unit)
+function newOps(parseInfo: ParseInfo, unit: ExpressUnit): void
 {
     pushNewOps(parseInfo);
     pushUnit(parseInfo, unit);
 }
 
-function parse(parseInfo)
+function parse(parseInfo: ParseInfo): ExpressUnit | undefined
 {
-    for (var next = parseUnit; typeof next === 'function'; next = next(parseInfo));
+    let next: FinalizerResult;
+    for (next = parseUnit; typeof next === 'function'; next = next(parseInfo));
     return next;
 }
 
-function parseNextOp(parseInfo)
+function parseNextOp(parseInfo: ParseInfo): FinalizerResult
 {
     if (readParenthesisLeft(parseInfo))
     {
@@ -250,14 +286,14 @@ function parseNextOp(parseInfo)
     }
     if (read(parseInfo, /^\./))
     {
-        var identifierData = defaultReadIdentifierData(parseInfo);
+        const identifierData = defaultReadIdentifierData(parseInfo);
         if (!identifierData)
             return;
         appendGetOp(parseInfo, { ops: [], value: identifierData.identifier });
         return parseNextOp;
     }
-    var unit = popUnit(parseInfo);
-    var ops = popOps(parseInfo);
+    let unit = popUnit(parseInfo);
+    let ops = popOps(parseInfo);
     if (ops.length)
     {
         unit.arithmetic = false;
@@ -271,9 +307,9 @@ function parseNextOp(parseInfo)
     unit.ops = ops = (unit.ops || []).concat(ops);
     if (ops.length && !unit.mod && !unit.pmod)
     {
-        if (/^.*$/.test(parseInfo.separator))
+        if (/^.*$/.test(parseInfo.separator!))
         {
-            var pmod = read(parseInfo, /^\+\+/);
+            const pmod = read(parseInfo, /^\+\+/);
             if (pmod)
             {
                 unit.pmod = pmod;
@@ -281,23 +317,23 @@ function parseNextOp(parseInfo)
             }
         }
     }
-    var next = appendTerm(parseInfo, unit);
+    const next = appendTerm(parseInfo, unit);
     return next;
 }
 
-function parsePrimaryExpr(parseInfo)
+function parsePrimaryExpr(parseInfo: ParseInfo): FinalizerResult
 {
-    var strExpr = read(parseInfo, strRegExp);
+    const strExpr = read(parseInfo, strRegExp);
     if (strExpr)
     {
-        var str = evalExpr(strExpr);
+        const str = evalExpr(strExpr);
         newOps(parseInfo, { value: str });
         return parseNextOp;
     }
-    var constValueExpr = read(parseInfo, constValueRegExp);
+    const constValueExpr = read(parseInfo, constValueRegExp);
     if (constValueExpr)
     {
-        var constValue = evalExpr(constValueExpr);
+        const constValue = evalExpr(constValueExpr);
         newOps(parseInfo, { arithmetic: true, value: constValue });
         return parseNextOp;
     }
@@ -316,84 +352,84 @@ function parsePrimaryExpr(parseInfo)
         pushFinalizer(parseInfo, finalizeGroup);
         return parseUnit;
     }
-    var identifierData = defaultReadIdentifierData(parseInfo);
+    const identifierData = defaultReadIdentifierData(parseInfo);
     if (identifierData)
     {
-        var identifier = identifierData.identifier;
+        const { identifier } = identifierData;
         if (isReturnableIdentifier(identifier, identifierData.escaped))
         {
-            newOps(parseInfo, { identifier: identifier });
+            newOps(parseInfo, { identifier });
             return parseNextOp;
         }
     }
 }
 
-function parseUnit(parseInfo)
+function parseUnit(parseInfo: ParseInfo): Parser
 {
-    var MAX_PARSABLE_NESTINGS = 1000;
+    const MAX_PARSABLE_NESTINGS = 1000;
 
     if (parseInfo.finalizerStack.length <= MAX_PARSABLE_NESTINGS)
     {
-        var mod = readMod(parseInfo, '');
+        const mod = readMod(parseInfo, '');
         pushMod(parseInfo, mod);
         pushUnit(parseInfo);
         return parsePrimaryExpr;
     }
 }
 
-function popFinalizer(parseInfo)
+function popFinalizer(parseInfo: ParseInfo): Finalizer
 {
-    var ret = parseInfo.finalizerStack.pop();
+    const ret = parseInfo.finalizerStack.pop()!;
     return ret;
 }
 
-function popMod(parseInfo)
+function popMod(parseInfo: ParseInfo): string
 {
-    var mod = parseInfo.modStack.pop();
+    const mod = parseInfo.modStack.pop()!;
     return mod;
 }
 
-function popOps(parseInfo)
+function popOps(parseInfo: ParseInfo): ExpressUnit[]
 {
-    var ops = parseInfo.opsStack.pop();
+    const ops = parseInfo.opsStack.pop()!;
     return ops;
 }
 
-function popUnit(parseInfo)
+function popUnit(parseInfo: ParseInfo): ExpressUnit
 {
-    var unit = parseInfo.unitStack.pop();
+    const unit = parseInfo.unitStack.pop()!;
     return unit;
 }
 
-function pushFinalizer(parseInfo, finalizer)
+function pushFinalizer(parseInfo: ParseInfo, finalizer: Finalizer): void
 {
     parseInfo.finalizerStack.push(finalizer);
 }
 
-function pushMod(parseInfo, mod)
+function pushMod(parseInfo: ParseInfo, mod: string): void
 {
     parseInfo.modStack.push(mod);
 }
 
-function pushNewOps(parseInfo)
+function pushNewOps(parseInfo: ParseInfo): void
 {
     parseInfo.opsStack.push([]);
 }
 
-function pushUnit(parseInfo, unit)
+function pushUnit(parseInfo: ParseInfo, unit?: ExpressUnit): void
 {
     parseInfo.unitStack.push(unit);
 }
 
-function read(parseInfo, regExp)
+function read(parseInfo: ParseInfo, regExp: RegExp): string | undefined
 {
-    var data = parseInfo.data;
-    var matches = regExp.exec(data);
+    let { data } = parseInfo;
+    const matches = regExp.exec(data);
     if (matches)
     {
-        var match = matches[0];
+        const [match] = matches;
         data = data.slice(match.length);
-        var separator = separatorRegExp.exec(data)[0];
+        const [separator] = separatorRegExp.exec(data)!;
         if (separator)
             data = data.slice(separator.length);
         parseInfo.data = data;
@@ -402,88 +438,88 @@ function read(parseInfo, regExp)
     }
 }
 
-function readMod(parseInfo, mod)
+function readMod(parseInfo: ParseInfo, mod: string): string
 {
-    var newMod;
+    let newMod;
     while (newMod = read(parseInfo, /^(?:!|\+\+?|-(?!-))/))
         mod = joinMods(mod, escapeMod(newMod));
     return mod;
 }
 
-function readParenthesisLeft(parseInfo)
+function readParenthesisLeft(parseInfo: ParseInfo): string | undefined
 {
-    var match = read(parseInfo, /^\(/);
+    const match = read(parseInfo, /^\(/);
     return match;
 }
 
-function readParenthesisRight(parseInfo)
+function readParenthesisRight(parseInfo: ParseInfo): string | undefined
 {
-    var match = read(parseInfo, /^\)/);
+    const match = read(parseInfo, /^\)/);
     return match;
 }
 
-function readSeparatorOrColon(parseInfo)
+function readSeparatorOrColon(parseInfo: ParseInfo): void
 {
     parseInfo.data = parseInfo.data.replace(separatorOrColonRegExp, '');
 }
 
-function readSquareBracketLeft(parseInfo)
+function readSquareBracketLeft(parseInfo: ParseInfo): string | undefined
 {
-    var match = read(parseInfo, /^\[/);
+    const match = read(parseInfo, /^\[/);
     return match;
 }
 
-function readSquareBracketRight(parseInfo)
+function readSquareBracketRight(parseInfo: ParseInfo): string | undefined
 {
-    var match = read(parseInfo, /^]/);
+    const match = read(parseInfo, /^]/);
     return match;
 }
 
-function replaceAndGroupToken(unused, tokenName)
+function replaceAndGroupToken(unused: string, tokenName: keyof typeof tokens): string
 {
-    var replacement = '(?:' + replaceToken(tokenName) + ')';
+    const replacement = `(?:${replaceToken(tokenName)})`;
     return replacement;
 }
 
-function replacePattern(richPattern)
+function replacePattern(richPattern: string): string
 {
-    var pattern = richPattern.replace(/#(\w+)/g, replaceAndGroupToken);
+    const pattern = richPattern.replace(/#(\w+)/g, replaceAndGroupToken);
     return pattern;
 }
 
-function replaceToken(tokenName)
+function replaceToken(tokenName: keyof typeof tokens): string
 {
-    var replacement = tokenCache[tokenName];
+    let replacement = tokenCache[tokenName];
     if (replacement == null)
     {
-        var richPattern = tokens[tokenName];
+        const richPattern = tokens[tokenName];
         tokenCache[tokenName] = replacement = replacePattern(richPattern);
     }
     return replacement;
 }
 
-function stringifyUnit(unit)
+function stringifyUnit(unit: ExpressUnit): string | undefined
 {
-    var inArray = false;
+    let inArray = false;
     while ('value' in unit && isUndecoratedUnit(unit))
     {
-        var value = unit.value;
+        const { value } = unit;
         if (!_Array_isArray(value))
             return value == null && inArray ? '' : _String(value);
-        unit = value[0];
+        [unit] = value;
         if (!unit)
             return '';
         inArray = true;
     }
 }
 
-function unescapeMod(mod)
+function unescapeMod(mod: string): string
 {
-    var unescapedMod = mod.replace(/#/g, '++');
+    const unescapedMod = mod.replace(/#/g, '++');
     return unescapedMod;
 }
 
-var tokens =
+const tokens =
 {
     ConstIdentifier:        'Infinity|NaN|false|true|undefined',
     DecimalLiteral:         '(?:(?:0|[1-9]\\d*)(?:\\.\\d*)?|\\.\\d+)(?:[Ee][+-]?\\d+)?',
@@ -500,16 +536,16 @@ var tokens =
     UnicodeEscapeSequence:  '\\\\u#HexDigit{4}',
 };
 
-var tokenCache = createEmpty();
+const tokenCache: { [key: string]: string; } = createEmpty();
 
 // Reserved words and that cannot be written with escape sequences.
-var INESCAPABLE_WORDS = ['false', 'null', 'true'];
+const INESCAPABLE_WORDS = ['false', 'null', 'true'];
 
 // This list includes reserved words and identifiers that would cause a change in a script's
 // behavior when placed after a return statement inside a Function invocation.
 // Unwanted changes include producing a syntax error where none is expected or a difference in
 // evaluation.
-var UNRETURNABLE_WORDS =
+const UNRETURNABLE_WORDS =
 [
     'arguments',    // shadowed in function body
     'debugger',     // : debugger;
@@ -528,20 +564,20 @@ var UNRETURNABLE_WORDS =
     'yield',        // may be an identifier in non-strict mode
 ];
 
-var constValueRegExp        = makeRegExp('(?:#NumericLiteral|#ConstIdentifier)');
-var rawIdentifierRegExp     = makeRegExp('(?:[$\\w]|#UnicodeEscapeSequence)+');
-var separatorOrColonRegExp  = makeRegExp('(?:#Separator|;)*');
-var separatorRegExp         = makeRegExp('#Separator*');
-var strRegExp               = makeRegExp('#SingleQuotedString|#DoubleQuotedString');
+const constValueRegExp          = makeRegExp('(?:#NumericLiteral|#ConstIdentifier)');
+const rawIdentifierRegExp       = makeRegExp('(?:[$\\w]|#UnicodeEscapeSequence)+');
+const separatorOrColonRegExp    = makeRegExp('(?:#Separator|;)*');
+const separatorRegExp           = makeRegExp('#Separator*');
+const strRegExp                 = makeRegExp('#SingleQuotedString|#DoubleQuotedString');
 
-export default function expressParse(input)
+export default function expressParse(input: string): ExpressUnit | true | undefined
 {
-    var parseInfo =
+    const parseInfo: ParseInfo =
     { data: input, modStack: [], opsStack: [], finalizerStack: [finalizeUnit], unitStack: [] };
     readSeparatorOrColon(parseInfo);
     if (!parseInfo.data)
         return true;
-    var unit = parse(parseInfo);
+    const unit = parse(parseInfo);
     if (unit)
     {
         readSeparatorOrColon(parseInfo);
