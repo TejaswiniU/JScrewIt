@@ -29,10 +29,10 @@ interface Encoder
 
     resolveExprAt
     (
-        expr:               string,
-        index:              number,
-        entries:            FunctionIndexDefinitionEntryList,
-        FB_PADDING_INFOS:   any,
+        expr:           string,
+        index:          number,
+        entries:        FunctionIndexDefinitionEntryList,
+        paddingInfos:   FunctionPaddingDefinitionEntryList,
     ):
     Solution;
 }
@@ -55,7 +55,7 @@ interface SolutionDefinition
 {
     readonly expr:      string;
     readonly level?:    Level;
-    readonly optimize?: OptimizeOptions | boolean;
+    readonly optimize?: OptimizeOptions | true;
 }
 
 type SolutionProvider = (this: Encoder) => Solution;
@@ -64,8 +64,9 @@ export const AMENDINGS = ['true', 'undefined', 'NaN'];
 
 export const JSFUCK_INFINITY = '1e1000';
 
-export const SIMPLE =
-{ } as unknown as { resolveSimple: (simple: string, definition: SolutionDefinition) => Solution; };
+export const SIMPLE:
+{ resolveSimple?: (simple: string, definition: SolutionDefinition) => Solution; } =
+{ };
 
 export let FROM_CHAR_CODE:          DefinitionEntryList<string>;
 export let FROM_CHAR_CODE_CALLBACK_FORMATTER:
@@ -89,7 +90,7 @@ export let CHARACTERS:
     ;
 };
 
-export let COMPLEX: { [K in string]?: DefinitionEntry<string | SolutionDefinition>; };
+export let COMPLEX: { readonly [key: string]: DefinitionEntry<string | SolutionDefinition>; };
 
 export let CONSTANTS:
 { [K in string]?: string | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>; };
@@ -154,7 +155,7 @@ function defineSimple(simple: string, expr: string, level: Level): void
     function get(): Solution
     {
         const definition = { expr, level };
-        const solution = SIMPLE.resolveSimple(simple, definition);
+        const solution = SIMPLE.resolveSimple!(simple, definition);
         _Object_defineProperty(SIMPLE, simple, { value: solution });
         return solution;
     }

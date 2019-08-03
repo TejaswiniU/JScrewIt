@@ -57,7 +57,7 @@ describe
                     );
                 }
             )
-            .timeout(5000);
+            .timeout(10000);
         }
 
         var options = { cwd: path.dirname(__dirname) };

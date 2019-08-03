@@ -1039,7 +1039,7 @@ const FEATURE_INFOS =
         ],
         attributes: { 'char-increment-restriction': null, 'web-worker-restriction': null },
     },
-};
+} as const;
 
 interface ElementaryFeature extends PredefinedFeature
 {
@@ -1075,8 +1075,8 @@ type FeatureInfo =
 &
 {
     readonly check?:        () => unknown;
-    readonly includes?:     readonly string[];
-    readonly excludes?:     readonly string[];
+    readonly includes?:     readonly FeatureInfoKey[];
+    readonly excludes?:     readonly FeatureInfoKey[];
     readonly attributes?:   { [key: string]: unknown; };
 };
 
@@ -1568,8 +1568,7 @@ const protoSource =
                 }
                 else
                     mask = maskNew();
-                const includes = includesMap[name] =
-                (info.includes || []) as readonly FeatureInfoKey[];
+                const includes = includesMap[name] = info.includes || [];
                 includes.forEach
                 (
                     (include: FeatureInfoKey): void =>

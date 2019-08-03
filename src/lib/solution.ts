@@ -5,6 +5,7 @@ export default class Solution
 {
     public appendLength!:           number;
     public bridge?:                 string;
+    public readonly charAt!:        (this: Solution, index: number) => string;
 
     /**
      * Indicates whether this solution contains a plus sign out of brackets not preceded by an
@@ -12,10 +13,10 @@ export default class Solution
      */
     public readonly hasOuterPlus!:  boolean;
     public readonly length!:        number;
-    public          level?:         Level;
+    public          level:          Level;
     public readonly replacement:    string;
 
-    public constructor(replacement: string, level?: Level, hasOuterPlus?: boolean)
+    public constructor(replacement: string, level: Level, hasOuterPlus?: boolean)
     {
         this.replacement    = replacement;
         this.level          = level;

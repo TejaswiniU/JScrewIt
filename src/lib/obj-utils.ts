@@ -72,7 +72,7 @@ export function assignNoEnum<T extends { }, U extends { }>(target: T, source: U)
 }
 
 export const createEmpty: () => { [K in number | string | symbol]: any } =
-_Object_create.bind(null, null, undefined as unknown as { });
+_Object_create.bind(null, null, undefined as any);
 
 export function esToString(arg: unknown): string
 {
