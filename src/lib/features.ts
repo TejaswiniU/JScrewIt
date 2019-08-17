@@ -1138,7 +1138,7 @@ function areEqual(): boolean
     _Array_prototype_every.call
     (
         arguments,
-        (arg: FeatureArgument, index): boolean =>
+        (arg: FeatureArgument, index: number): boolean =>
         {
             let returnValue;
             const otherMask = validMaskFromArrayOrStringOrFeature(arg);
@@ -1314,7 +1314,11 @@ boolean
     if (returnValue === undefined)
     {
         attributeCache[attributeName] = returnValue =
-        featureObjs.some(({ attributes }): boolean => attributeName in attributes);
+        featureObjs.some
+        (
+            ({ attributes }: { attributes: { [key: string]: unknown; }; }): boolean =>
+            attributeName in attributes,
+        );
     }
     return returnValue;
 }
