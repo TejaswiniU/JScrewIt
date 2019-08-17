@@ -6,7 +6,7 @@ import Solution                                             from './solution';
 // This implementation assumes that all numeric solutions have an outer plus, and all other
 // character solutions have none.
 
-interface Optimizer
+export interface Optimizer
 {
     appendLengthOf(solution: Solution): number;
     optimizeSolutions
@@ -22,8 +22,8 @@ interface ScrewBuffer
 type ScrewBufferConstructor =
 new
 (
-    bond: boolean,
-    forceString: boolean,
+    bond: boolean | undefined,
+    forceString: boolean | undefined,
     groupThreshold: number,
     optimizerList: readonly Optimizer[],
 ) =>
@@ -195,7 +195,7 @@ void;
             const [solution] = solutions;
             array = [solution];
             multiPart = false;
-            notStr = solution.level < Level.STRING;
+            notStr = solution.level! < Level.STRING;
         }
         if (notStr && groupForceString)
         {
@@ -218,7 +218,7 @@ void;
     (solutions: readonly Solution[], index: number, leftmost: boolean, rightmost: boolean): number
     {
         const solutionCenter = solutions[index];
-        const levelCenter = solutionCenter.level;
+        const levelCenter = solutionCenter.level!;
         let levelLeft: Level;
         let levelRight: Level;
         let solutionRight: Solution;
@@ -226,13 +226,13 @@ void;
         (
             rightmost && levelCenter < Level.NUMERIC ?
             3 :
-            isNumericJoin(levelCenter, levelRight = (solutionRight = solutions[index + 1]).level) ?
+            isNumericJoin(levelCenter, levelRight = (solutionRight = solutions[index + 1]).level!) ?
             getNumericJoinCost(levelCenter, levelRight) - (solutionRight.hasOuterPlus ? 2 : 0) :
             0
         ) -
         (
             leftmost &&
-            isNumericJoin(levelCenter, levelLeft = solutions[index - 1].level) ?
+            isNumericJoin(levelCenter, levelLeft = solutions[index - 1].level!) ?
             getNumericJoinCost(levelLeft, levelCenter) :
             solutionCenter.hasOuterPlus ? 2 : 0
         );
@@ -248,8 +248,8 @@ void;
     function isUnluckyRightEnd(solutions: readonly Solution[], firstIndex: number): boolean
     {
         const result =
-        solutions[firstIndex].level < Level.NUMERIC &&
-        solutions[firstIndex + 1].level > Level.UNDEFINED;
+        solutions[firstIndex].level! < Level.NUMERIC &&
+        solutions[firstIndex + 1].level! > Level.UNDEFINED;
         return result;
     }
 
@@ -267,11 +267,11 @@ void;
         let array: (Solution | string)[];
         const solution0 = solutions[offset];
         const solution1 = solutions[offset + 1];
-        if (solution0.level < Level.OBJECT && solution1.level < Level.OBJECT)
+        if (solution0.level! < Level.OBJECT && solution1.level! < Level.OBJECT)
         {
-            if (solution1.level > Level.UNDEFINED)
+            if (solution1.level! > Level.UNDEFINED)
                 array = [solution0, '+[', solution1, ']'];
-            else if (solution0.level > Level.UNDEFINED)
+            else if (solution0.level! > Level.UNDEFINED)
                 array = ['[', solution0, ']+', solution1];
             else
                 array = [solution0, '+[]+', solution1];
@@ -301,7 +301,7 @@ void;
             else
             {
                 const solution = solutions[offset];
-                str = solution + (solution.level < Level.NUMERIC ? '+[]' : '');
+                str = solution + (solution.level! < Level.NUMERIC ? '+[]' : '');
             }
         }
         else
@@ -315,8 +315,8 @@ void;
     function
     (
         this: ScrewBuffer,
-        bond: boolean,
-        forceString: boolean,
+        bond: boolean | undefined,
+        forceString: boolean | undefined,
         groupThreshold: number,
         optimizerList: readonly Optimizer[],
     ):
@@ -403,7 +403,7 @@ void;
                     if (solutionCount < 2)
                     {
                         const solution = solutions[0] || EMPTY_SOLUTION;
-                        const multiPart = forceString && solution.level < Level.STRING;
+                        const multiPart = forceString && solution.level! < Level.STRING;
                         str = solution.replacement;
                         if (multiPart)
                             str += '+[]';

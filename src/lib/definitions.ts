@@ -11,7 +11,7 @@ import Level                                from './level';
 import { _Object_defineProperty, noProto }  from './obj-utils';
 import Solution                             from './solution';
 
-interface Encoder
+export interface EncoderBase
 {
     createCharDefaultSolution
     (
@@ -23,9 +23,9 @@ interface Encoder
     ):
     Solution;
 
-    findDefinition<T>(entries: DefinitionEntryList<T>): T;
+    findDefinition<T>(entries: DefinitionEntryList<T>): T | undefined;
 
-    replaceString(str: string): string;
+    replaceString(str?: string): string | undefined;
 
     resolveExprAt
     (
@@ -37,35 +37,42 @@ interface Encoder
     Solution;
 }
 
-type FunctionIndexDefinitionEntryList =
+export type FunctionIndexDefinitionEntryList =
 DefinitionEntryList<number | { readonly block: string; readonly indexer: string; }>;
 
-type FunctionPaddingDefinitionEntryList =
-DefinitionEntryList<
-null | { readonly blocks: readonly (string | undefined)[]; readonly shift: number; }
->;
+export interface FunctionPaddingDefinition
+{
+    readonly blocks:    readonly (string | undefined)[];
+    readonly shift:     number;
+}
 
-interface OptimizeOptions
+export type FunctionPaddingDefinitionEntryList =
+DefinitionEntryList<FunctionPaddingDefinition | null>;
+
+export interface OptimizeOptions
 {
     readonly complexOpt?:   boolean;
     readonly toStringOpt?:  boolean;
 }
 
-interface SolutionDefinition
+export type SimpleKey = 'Infinity' | 'NaN' | 'false' | 'true' | 'undefined';
+
+export interface SolutionDefinition
 {
     readonly expr:      string;
     readonly level?:    Level;
     readonly optimize?: OptimizeOptions | true;
 }
 
-type SolutionProvider = (this: Encoder) => Solution;
+export type SolutionProvider = (this: EncoderBase) => Solution;
 
 export const AMENDINGS = ['true', 'undefined', 'NaN'];
 
 export const JSFUCK_INFINITY = '1e1000';
 
 export const SIMPLE:
-{ resolveSimple?: (simple: string, definition: SolutionDefinition) => Solution; } =
+{ readonly [K in SimpleKey]?: Solution; } &
+{ resolveSimple?: (simple: SimpleKey, definition: SolutionDefinition) => Solution; } =
 { };
 
 export let FROM_CHAR_CODE:          DefinitionEntryList<string>;
@@ -93,9 +100,12 @@ export let CHARACTERS:
 export let COMPLEX: { readonly [key: string]: DefinitionEntry<string | SolutionDefinition>; };
 
 export let CONSTANTS:
-{ [K in string]?: string | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>; };
+{
+    readonly [K in string]:
+    string | DefinitionEntryList<string | SolutionDefinition | SolutionProvider>;
+};
 
-function commaDefinition(this: Encoder): Solution
+function commaDefinition(this: EncoderBase): Solution
 {
     const bridge = `[${this.replaceString('concat')}]`;
     const solution = createBridgeSolution(bridge);
@@ -121,7 +131,7 @@ function createCharAtDefinitionFH
 ):
 SolutionProvider
 {
-    function definitionFH(this: Encoder): Solution
+    function definitionFH(this: EncoderBase): Solution
     {
         const solution = this.resolveExprAt(expr, index, entries, paddingInfos);
         return solution;
@@ -140,7 +150,7 @@ function createCharDefaultDefinition
 ):
 SolutionProvider
 {
-    function charDefaultDefinition(this: Encoder): Solution
+    function charDefaultDefinition(this: EncoderBase): Solution
     {
         const solution =
         this.createCharDefaultSolution(charCode, atobOpt, charCodeOpt, escSeqOpt, unescapeOpt);
@@ -150,7 +160,7 @@ SolutionProvider
     return charDefaultDefinition;
 }
 
-function defineSimple(simple: string, expr: string, level: Level): void
+function defineSimple(simple: SimpleKey, expr: string, level: Level): void
 {
     function get(): Solution
     {
@@ -321,9 +331,9 @@ defineSimple('Infinity',    JSFUCK_INFINITY,    Level.NUMERIC);
 
     function createCharAtDefinitionFB(offset: number): SolutionProvider
     {
-        function definitionFB(this: Encoder): Solution
+        function definitionFB(this: EncoderBase): Solution
         {
-            const functionDefinition = this.findDefinition(FB_EXPR_INFOS);
+            const functionDefinition = this.findDefinition(FB_EXPR_INFOS)!;
             const { expr } = functionDefinition;
             const index = offset + functionDefinition.shift;
             let paddingEntries!: FunctionIndexDefinitionEntryList;

@@ -19,7 +19,7 @@ import { _Array_isArray, _Function, _JSON_parse, _RegExp, _String, createEmpty }
 // * Semicolons
 // * Comments
 
-interface ExpressUnit
+export interface ExpressUnit
 {
     arithmetic?: boolean;
     readonly identifier?: string;
